@@ -1,0 +1,5 @@
+{"type":"thread.started","thread_id":"01a1b37a-5fae-74c2-961d-07487228e8b7"}
+{"type":"item.completed","item":{"id":"item_0","type":"error","message":"Code Mode is unavailable because code-mode host is disabled. Code mode will fail closed; enable `features.code_mode_host` and install `codex-code-mode-host`."}}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_1","type":"agent_message","text":"{\"tool\":\"inspect_docs\",\"arguments\":\"{}\",\"reason\":\"Read supported workflow and recovery semantics before submitting the migration plan.\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":15559,"cached_input_tokens":9216,"cache_write_input_tokens":0,"output_tokens":35,"reasoning_output_tokens":0}}

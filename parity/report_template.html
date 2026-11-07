@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>PARITY — Migration evidence</title>
+  <style>
+    :root{--paper:#f4f3ef;--panel:#fbfaf7;--ink:#18231f;--muted:#58655e;--line:#d7dbd3;--green:#1b5540;--green-soft:#e4ece4;--orange:#a95420;--orange-soft:#f7e8dc;--red:#9a3d31;--rail:#172b22;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;--sans:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    *{box-sizing:border-box}html{scroll-behavior:smooth;scroll-padding-top:28px}body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.5}button,select{font:inherit}button,select,a{touch-action:manipulation}button{cursor:pointer}a{color:inherit;text-decoration:none}button:focus-visible,a:focus-visible,select:focus-visible,summary:focus-visible{outline:3px solid #b47738;outline-offset:4px}button:disabled{cursor:default;opacity:.55}::selection{background:#d7e5d4}p,h1,h2,h3{margin:0}p{color:var(--muted)}.mono,.eyebrow,.label,.status,.tag{font-family:var(--mono)}.eyebrow{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}.rail{position:fixed;inset:0 auto 0 0;width:76px;background:var(--rail);color:#d8e5d7;display:flex;flex-direction:column;align-items:center;z-index:5}.brand-mark{margin-top:31px;width:34px;height:34px;border:1px solid #8fa898;display:grid;place-items:center;font-family:var(--mono);font-weight:700;letter-spacing:-4px;font-size:24px;padding-right:4px}.rail nav{display:flex;flex-direction:column;gap:21px;margin-top:59px}.rail nav a{width:36px;min-height:36px;display:grid;place-items:center;border:1px solid transparent;font-family:var(--mono);font-size:10px;letter-spacing:.06em;color:#b8c9bc}.rail nav a:hover{border-color:#55705d;color:#fff}.rail-foot{margin-top:auto;writing-mode:vertical-rl;font-family:var(--mono);font-size:9px;letter-spacing:.18em;color:#95ac9b;padding:26px 0}.shell{margin-left:76px;padding:30px 48px 36px;max-width:1600px}.topline{display:flex;align-items:center;justify-content:space-between;gap:18px;border-bottom:1px solid var(--line);padding-bottom:22px}.wordmark{font-weight:760;letter-spacing:.23em;font-size:15px}.wordmark span{margin-left:20px;font-family:var(--mono);font-weight:400;font-size:10px;letter-spacing:.04em;color:var(--muted)}.stamp{font-family:var(--mono);font-size:10px;color:var(--muted);text-align:right}.intro{padding:38px 0 30px;display:flex;align-items:flex-end;justify-content:space-between;gap:32px}.intro h1{font-size:clamp(35px,4vw,57px);line-height:1.08;letter-spacing:-.055em;font-weight:650;margin-top:10px}.intro p{margin-top:15px;max-width:650px;font-size:14px;line-height:1.65}.provenance{max-width:340px;text-align:right;flex-shrink:0}.tag{display:inline-flex;align-items:center;gap:7px;font-size:10px;line-height:1.5;letter-spacing:.015em;padding:6px 9px;border:1px solid var(--line);background:var(--panel);overflow-wrap:anywhere;text-align:left}.tag::before{content:"";width:5px;height:5px;background:var(--green);flex-shrink:0}.tag.warning::before{background:var(--orange)}.provenance small{display:block;color:var(--muted);font-size:11px;margin-top:9px}.pathboard{border-top:2px solid var(--ink);border-bottom:1px solid var(--ink);margin-bottom:27px}.pathrow{display:grid;grid-template-columns:minmax(170px,1.05fr) minmax(240px,1.6fr) minmax(200px,1fr);gap:20px;align-items:center;padding:17px 18px;border-bottom:1px solid var(--line)}.pathrow:last-child{border-bottom:0;background:#e9eee6}.path-name{display:flex;align-items:center;gap:14px;font-size:12px;font-weight:600}.path-number{font-family:var(--mono);font-size:10px;color:var(--muted);font-weight:400}.route{display:flex;align-items:center;gap:11px;font-family:var(--mono);font-size:11px;min-width:0}.node{padding:5px 9px;border:1px solid #c4ccc2;background:var(--panel);white-space:nowrap}.node.engine{background:var(--green);color:white;border-color:var(--green)}.arrow{color:#768273;flex-shrink:0}.path-result{justify-self:end;text-align:right}.status{display:inline-flex;align-items:center;gap:7px;font-size:10px;letter-spacing:.03em;text-transform:uppercase;color:var(--green)}.status::before{content:"";display:block;width:5px;height:5px;background:currentColor}.status.fail{color:var(--red)}.status.pending{color:var(--orange)}.path-result small{display:block;font-size:11px;color:var(--muted);margin-top:3px}.metrics{display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr;border:1px solid var(--line);background:var(--panel)}.metric{padding:22px 23px;border-left:1px solid var(--line);min-width:0}.metric:first-child{border-left:0;background:var(--green);color:#fff}.metric .eyebrow{color:inherit;opacity:.8;font-size:9px;line-height:1.7}.metric-value{font-size:36px;font-weight:600;line-height:1.2;letter-spacing:-.045em;margin:9px 0 7px}.metric-value span{font-family:var(--mono);font-size:15px;letter-spacing:-.03em;opacity:.6;margin-left:5px}.metric small{font-size:11px;line-height:1.5;display:block;color:var(--muted)}.metric:first-child small{color:#d5e3d5}.section{margin-top:47px}.section-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:22px;margin-bottom:19px}.section-title{display:flex;gap:13px;align-items:baseline}.section-index{font-family:var(--mono);font-size:10px;color:var(--green)}h2{font-size:23px;letter-spacing:-.035em;font-weight:620}.section-heading p{font-size:12px;max-width:510px;padding-top:5px}.table-wrap{overflow-x:auto;border-top:1px solid var(--ink);border-bottom:1px solid var(--line);background:var(--panel)}table{border-collapse:collapse;width:100%;min-width:650px;text-align:left}th{font-family:var(--mono);font-size:9px;text-transform:uppercase;font-weight:400;letter-spacing:.1em;color:var(--muted);padding:13px 17px;border-bottom:1px solid var(--line)}td{padding:16px 17px;border-bottom:1px solid var(--line);vertical-align:middle;font-size:12px}tr:last-child td{border-bottom:0}.candidate-name{font-weight:650;display:block;margin-bottom:3px}.candidate-role{font-size:10px;color:var(--muted);max-width:300px;display:block}.result-fraction{font-family:var(--mono);font-size:12px;white-space:nowrap}.meter{margin-top:7px;height:3px;background:#e5e6e0;max-width:90px}.meter i{display:block;height:100%;background:var(--green)}.numeric{font-family:var(--mono);font-size:11px}.table-note{font-size:11px;margin-top:11px;max-width:970px}.workspace{display:grid;grid-template-columns:265px minmax(0,1fr);border:1px solid var(--line);border-top-color:var(--ink);background:var(--panel);min-height:445px}.scenario-sidebar{border-right:1px solid var(--line);background:#eeeee7;min-width:0}.select-wrap{padding:16px;border-bottom:1px solid var(--line)}label{display:block;font-family:var(--mono);font-size:9px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin-bottom:7px}select{width:100%;min-width:0;padding:9px 27px 9px 10px;border:1px solid #c5ccbf;border-radius:0;background:var(--panel);color:var(--ink);font-size:11px}.scenario-list{padding:7px}.scenario-button{display:flex;width:100%;gap:10px;align-items:flex-start;text-align:left;padding:11px 10px;border:1px solid transparent;background:transparent;color:var(--ink);font-family:var(--mono);font-size:10px;line-height:1.55}.scenario-button::before{content:"";width:5px;height:5px;background:var(--green);margin-top:5px;flex-shrink:0}.scenario-button.fail::before{background:var(--red)}.scenario-button:hover{background:#e5e9df}.scenario-button[aria-pressed="true"]{background:var(--panel);border-color:#c9d0c3}.scenario-body{padding:24px 25px;min-width:0}.scenario-top{display:flex;justify-content:space-between;gap:15px;align-items:flex-start;margin-bottom:19px}.scenario-top h3{font-size:17px;font-weight:620;letter-spacing:-.02em;overflow-wrap:anywhere}.scenario-subtitle{font-size:10px;margin-top:5px;color:var(--muted);font-family:var(--mono)}.failure{border-left:3px solid var(--orange);padding:12px 15px;background:var(--orange-soft);font-family:var(--mono);font-size:11px;white-space:pre-wrap;overflow-wrap:anywhere;margin-bottom:18px;color:#75421f}.tabs{display:flex;gap:22px;border-bottom:1px solid var(--line);margin-bottom:17px}.tab{border:0;border-bottom:2px solid transparent;padding:7px 0 9px;background:none;font-family:var(--mono);font-size:10px;color:var(--muted)}.tab[aria-selected="true"]{color:var(--green);border-bottom-color:var(--green)}.tab:hover{color:var(--ink)}pre{font-family:var(--mono);font-size:11px;line-height:1.65;tab-size:2;margin:0;white-space:pre;overflow:auto;max-width:100%;color:#263c2d}.codebox{background:#f0f1eb;border:1px solid #dce0d5;padding:17px;max-height:465px;overflow:auto;min-width:0}.codebox.dark{background:#1a2a22;border-color:#1a2a22;color:#dce8d8;max-height:620px}.codebox.dark pre{color:#dce8d8}.empty{color:var(--muted);font-size:12px;padding:24px 0}.trace-label{font-family:var(--mono);font-size:9px;letter-spacing:.08em;color:var(--muted);margin-bottom:9px;text-transform:uppercase}.artifact-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:15px}.artifact{min-width:0;border:1px solid var(--line);background:var(--panel)}.artifact.full{grid-column:1/-1}.artifact>summary{cursor:pointer;display:flex;align-items:center;gap:11px;padding:17px 18px;list-style:none;font-size:12px;font-weight:600}.artifact>summary::-webkit-details-marker{display:none}.artifact>summary::before{content:"+";font-family:var(--mono);font-size:17px;color:var(--green);font-weight:400;width:12px}.artifact[open]>summary::before{content:"−"}.artifact>summary .artifact-meta{margin-left:auto;font-family:var(--mono);font-size:9px;font-weight:400;color:var(--muted)}.artifact-content{padding:0 18px 18px;min-width:0}.artifact-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:9px}.artifact-toolbar .label{font-size:9px;color:var(--muted);overflow-wrap:anywhere}.copy{padding:4px 8px;background:transparent;border:1px solid var(--line);font-family:var(--mono);font-size:9px;color:var(--muted)}.copy:hover{color:var(--green);border-color:var(--green)}.revision{padding-top:13px;margin-top:13px;border-top:1px solid var(--line)}.revision h3{font-family:var(--mono);font-size:10px;font-weight:500;margin-bottom:8px}.bottom-grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:28px}.usage-panel,.limitations-panel{border-top:1px solid var(--ink);padding-top:16px;min-width:0}.usage-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:17px;border-bottom:1px solid var(--line);padding-bottom:19px;margin-bottom:18px}.usage-summary .label{font-size:9px;color:var(--muted);line-height:1.5}.usage-value{font-family:var(--mono);font-size:18px;margin-top:6px}.usage-value.small{font-size:12px;line-height:1.5;max-width:180px}.usage-list{list-style:none;padding:0;margin:0}.usage-list li{display:grid;grid-template-columns:27px minmax(0,1fr) auto;gap:10px;align-items:baseline;padding:9px 0;border-bottom:1px solid var(--line);font-size:11px}.usage-list .call-number{font-family:var(--mono);font-size:9px;color:var(--muted)}.usage-list .model-name{display:block;color:var(--muted);font-family:var(--mono);font-size:9px;margin-top:3px;overflow-wrap:anywhere}.usage-list .duration{font-family:var(--mono);font-size:10px;color:var(--muted)}.limits{list-style:none;padding:0;margin:0}.limits li{position:relative;padding:0 0 14px 16px;font-size:12px;color:var(--muted)}.limits li::before{content:"—";position:absolute;left:0;color:var(--orange)}.integrity-box{margin-top:17px;padding:13px 15px;border:1px solid var(--line);background:var(--panel)}.integrity-box summary{cursor:pointer;font-family:var(--mono);font-size:10px;color:var(--green)}.integrity-box pre{font-size:10px;margin-top:13px;max-height:220px}.footer{margin-top:42px;padding-top:22px;border-top:1px solid var(--ink);display:flex;justify-content:space-between;gap:30px;align-items:flex-start}.footer strong{font-family:var(--mono);font-size:10px;letter-spacing:.14em;font-weight:500;display:block;margin-bottom:6px}.footer p{font-size:11px;max-width:680px}.footer .folio{font-family:var(--mono);font-size:10px;color:var(--muted);white-space:nowrap}.muted{color:var(--muted)}[hidden]{display:none!important}
+    .public-trial{margin-top:17px;padding-top:17px;border-top:1px solid var(--line)}.public-trial-header{display:flex;align-items:baseline;justify-content:space-between;gap:14px;margin-bottom:11px}.public-trial-header h3{font-family:var(--mono);font-size:11px;font-weight:500}.public-trial .failure{margin-bottom:12px}.public-trial .codebox{max-height:310px}.public-trials-note{font-size:11px;line-height:1.6;max-width:850px}.public-trial .trace-label{margin-top:12px}
+    @media(min-width:1700px){.shell{margin-right:auto;margin-left:auto;padding-left:90px}}
+    @media(max-width:1150px){.shell{padding:26px 30px 32px}.intro{align-items:flex-start;flex-direction:column;gap:18px}.provenance{text-align:left;max-width:none}.provenance small{display:inline;margin-left:10px}.pathrow{grid-template-columns:1fr 1.4fr 1fr;gap:12px;padding-left:10px;padding-right:10px}.path-name{gap:8px;font-size:11px}.route{gap:7px;font-size:10px}.node{padding:4px 6px}.path-result small{font-size:10px}.metric{padding:18px}.workspace{grid-template-columns:230px minmax(0,1fr)}.scenario-body{padding:21px}.section-heading p{max-width:420px}.wordmark span{display:none}}
+    @media(max-width:800px){.rail{width:53px}.brand-mark{width:28px;height:28px;font-size:20px;margin-top:25px}.rail nav{gap:12px;margin-top:39px}.rail nav a{width:29px}.shell{margin-left:53px;padding:22px 22px 28px}.topline{padding-bottom:17px}.stamp{font-size:9px}.intro{padding:29px 0 23px}.intro h1{font-size:42px}.pathrow{grid-template-columns:1fr auto;gap:10px;padding:14px 11px}.path-name{grid-column:1}.route{grid-column:1;grid-row:auto;font-size:10px;margin-left:22px}.path-result{grid-column:2;grid-row:1/3;max-width:150px}.metrics{grid-template-columns:1fr 1fr}.metric:nth-child(3){border-left:0;border-top:1px solid var(--line)}.metric:nth-child(4){border-top:1px solid var(--line)}.metric-value{font-size:31px}.section-heading{flex-direction:column;gap:4px}.section-heading p{max-width:none}.workspace{grid-template-columns:1fr}.scenario-sidebar{border-right:0;border-bottom:1px solid var(--line)}.select-wrap{padding:13px 16px}.scenario-list{display:flex;overflow:auto;padding:8px;gap:3px;max-width:100%}.scenario-button{width:auto;white-space:nowrap;padding:8px;flex-shrink:0}.scenario-body{padding:21px 18px}.artifact-grid{grid-template-columns:1fr}.artifact.full{grid-column:auto}.bottom-grid{grid-template-columns:1fr;gap:33px}.section{margin-top:34px}.footer{margin-top:32px}.footer .folio{display:none}}
+    @media(max-width:480px){.rail{position:static;width:100%;height:48px;flex-direction:row;padding:0 18px}.brand-mark{margin:0;width:25px;height:25px;font-size:18px}.rail nav{flex-direction:row;margin:0 0 0 auto;gap:8px}.rail nav a{min-height:27px}.rail-foot{display:none}.shell{margin:0;padding:20px 17px 27px}.wordmark{font-size:13px}.stamp{font-size:8px;max-width:140px}.intro h1{font-size:37px;letter-spacing:-.055em}.intro p{font-size:12px;margin-top:12px}.intro .eyebrow{font-size:9px}.provenance small{display:block;margin:7px 0 0;font-size:10px}.tag{font-size:9px}.pathrow{gap:7px;padding:13px 9px}.path-name{font-size:11px}.path-result{max-width:116px}.path-result small{font-size:9px;line-height:1.5}.status{font-size:8px;gap:5px}.route{font-size:9px;gap:6px}.node{padding:4px 5px}.metric{padding:17px 14px}.metric .eyebrow{font-size:8px}.metric-value{font-size:30px}.metric small{font-size:10px}.metric-value span{font-size:12px}.section-title{gap:10px}h2{font-size:21px}.section-heading p{font-size:11px}.section-heading{margin-bottom:14px}.scenario-top{gap:10px}.scenario-top h3{font-size:15px}.scenario-subtitle{font-size:9px}.scenario-body{padding:19px 14px}.tabs{gap:18px}.codebox{padding:12px}pre{font-size:10px}.artifact>summary{padding:15px 13px;font-size:11px}.artifact>summary .artifact-meta{font-size:8px}.artifact-content{padding:0 13px 13px}.usage-summary{gap:10px}.usage-summary .label{font-size:8px}.usage-value{font-size:16px}.usage-value.small{font-size:10px}.footer p{font-size:10px}.footer strong{font-size:9px}.limits li{font-size:11px}.table-note{font-size:10px}}
+    @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+    @media print{.rail,.copy{display:none}.shell{margin:0;max-width:none;padding:0}.scenario-list{max-height:none}.codebox{max-height:none}.section,.pathboard,.metrics{break-inside:avoid}.footer{margin-top:20px}body{background:white}.workspace{display:block}.scenario-sidebar{display:none}.intro h1{font-size:36px}}
+  </style>
+</head>
+<body>
+  <aside class="rail" aria-label="Report navigation">
+    <a class="brand-mark" href="#overview" aria-label="PARITY overview">//</a>
+    <nav><a href="#comparison" aria-label="Comparison">01</a><a href="#replay" aria-label="Workflow replay">02</a><a href="#artifacts" aria-label="Migration artifacts">03</a><a href="#bounds" aria-label="Evidence and limits">04</a></nav>
+    <div class="rail-foot">COMPATIBILITY / OBSERVED</div>
+  </aside>
+  <main class="shell" id="overview">
+    <header class="topline"><a href="#overview" class="wordmark">PARITY<span>API COMPATIBILITY ENGINE</span></a><div class="stamp" id="generated-at">Static evidence report</div></header>
+    <section class="intro" aria-labelledby="page-title">
+      <div><div class="eyebrow">Contract → migration → independent replay</div><h1 id="page-title">Migration evidence.</h1><p>One unchanged client. Two incompatible APIs. A compatibility adapter checked against the business effects it leaves behind.</p></div>
+      <div class="provenance"><span class="tag" id="provenance">Provenance not recorded</span><small id="report-status">Results have not been recorded.</small></div>
+    </section>
+    <section class="pathboard" aria-label="Three migration paths">
+      <div class="pathrow"><div class="path-name"><span class="path-number">A</span>Legacy baseline</div><div class="route"><span>client</span><span class="arrow">→</span><span class="node">API V1</span></div><div class="path-result"><span class="status pending" id="path-v1">Unobserved</span><small id="path-v1-note">No baseline response recorded</small></div></div>
+      <div class="pathrow"><div class="path-name"><span class="path-number">B</span>Breaking migration</div><div class="route"><span>client</span><span class="arrow">→</span><span class="node">API V2</span></div><div class="path-result"><span class="status pending" id="path-v2">Unobserved</span><small id="path-v2-note">No direct migration recorded</small></div></div>
+      <div class="pathrow"><div class="path-name"><span class="path-number">C</span>PARITY migration</div><div class="route"><span>client</span><span class="arrow">→</span><span class="node engine">adapter</span><span class="arrow">→</span><span class="node">V2</span></div><div class="path-result"><span class="status pending" id="path-adapter">Unobserved</span><small id="path-adapter-note">Independent replay pending</small></div></div>
+    </section>
+    <section class="metrics" aria-label="Observed evaluation totals">
+      <article class="metric"><div class="eyebrow">Commerce compatibility</div><div class="metric-value" id="commerce-score">—</div><small>Independent workflow scenarios</small></article>
+      <article class="metric"><div class="eyebrow">Second-domain transfer</div><div class="metric-value" id="transfer-score">—</div><small>Same engine, different contract</small></article>
+      <article class="metric"><div class="eyebrow">Defective adapters rejected</div><div class="metric-value" id="mutant-score">—</div><small>Checker calibration controls</small></article>
+      <article class="metric"><div class="eyebrow">Provider call attempts</div><div class="metric-value" id="call-count">—</div><small id="model-note">Provider usage not recorded</small></article>
+    </section>
+    <section class="section" id="comparison" aria-labelledby="comparison-title">
+      <div class="section-heading"><div class="section-title"><span class="section-index">01 /</span><h2 id="comparison-title">Compare the evidence.</h2></div><p>Each candidate is measured by the same acceptance predicates. A reference adapter calibrates correctness; it is not an AI baseline.</p></div>
+      <div class="table-wrap"><table><thead><tr><th scope="col">Candidate / provenance</th><th scope="col">Domain</th><th scope="col">Workflows matched</th><th scope="col">Median added latency</th><th scope="col">Observed result</th></tr></thead><tbody id="comparison-rows"></tbody></table></div>
+      <p class="table-note">Latency is computed only from paired actions with recorded timings in successfully matched workflows in this local harness. Candidates without comparable successful workflows remain unobserved. Small fixture suites do not establish statistical superiority or general REST compatibility.</p>
+    </section>
+    <section class="section" id="replay" aria-labelledby="replay-title">
+      <div class="section-heading"><div class="section-title"><span class="section-index">02 /</span><h2 id="replay-title">Replay, then inspect.</h2></div><p>Select a candidate and workflow to see the actual observations, semantic effects, and failures.</p></div>
+      <div class="workspace"><aside class="scenario-sidebar"><div class="select-wrap"><label for="candidate-select">Evaluation candidate</label><select id="candidate-select"></select></div><div class="scenario-list" id="scenario-list" aria-label="Workflow scenarios"></div></aside><article class="scenario-body"><div class="scenario-top"><div><h3 id="scenario-title">No scenario selected</h3><div class="scenario-subtitle" id="scenario-meta">Load an evaluation artifact to inspect it.</div></div><span id="scenario-status" class="status pending">Unobserved</span></div><div id="scenario-mismatch" class="failure" hidden></div><div class="tabs" role="tablist" aria-label="Scenario evidence"><button class="tab" id="tab-actions" role="tab" aria-selected="true" aria-controls="scenario-content" type="button">Action trace</button><button class="tab" id="tab-effects" role="tab" aria-selected="false" aria-controls="scenario-content" type="button">Business effects</button><button class="tab" id="tab-raw" role="tab" aria-selected="false" aria-controls="scenario-content" type="button">Full record</button></div><div class="trace-label" id="trace-label">Actual client / service observations</div><div class="codebox" id="scenario-content" role="tabpanel" tabindex="0" aria-labelledby="tab-actions"><pre id="scenario-json">No workflow evidence has been recorded.</pre></div></article></div>
+    </section>
+    <section class="section" id="artifacts" aria-labelledby="artifacts-title">
+      <div class="section-heading"><div class="section-title"><span class="section-index">03 /</span><h2 id="artifacts-title">Follow the artifact trail.</h2></div><p>Contracts and behavioral evidence become a versioned plan, executable source, and test feedback. Source is shown exactly as recorded.</p></div>
+      <div class="artifact-grid">
+        <details class="artifact"><summary>Contract delta<span class="artifact-meta" id="delta-count">STATIC + UNCERTAIN</span></summary><div class="artifact-content"><div class="artifact-toolbar"><span class="label">OpenAPI differences and uncertainty</span><button class="copy" type="button" data-copy="delta-json">Copy</button></div><div class="codebox"><pre id="delta-json">No contract delta recorded.</pre></div></div></details>
+        <details class="artifact"><summary>Migration plan<span class="artifact-meta" id="plan-version">VERSIONED JSON</span></summary><div class="artifact-content"><div class="artifact-toolbar"><span class="label">Validated plan intermediate representation</span><button class="copy" type="button" data-copy="plan-json">Copy</button></div><div class="codebox"><pre id="plan-json">No migration plan recorded.</pre></div></div></details>
+        <details class="artifact full"><summary>Executable adapter source<span class="artifact-meta" id="source-digest">RECORDED ARTIFACT</span></summary><div class="artifact-content"><div class="artifact-toolbar"><span class="label">adapter.py · engine-owned runtime is separate</span><button class="copy" type="button" data-copy="source-code">Copy source</button></div><div class="codebox dark"><pre id="source-code">No generated source recorded.</pre></div><div id="revision-list"></div></div></details>
+        <details class="artifact full" id="public-trials-panel" hidden><summary>Public diagnostic trials<span class="artifact-meta" id="public-trials-count">AGENT-VISIBLE FEEDBACK</span></summary><div class="artifact-content"><p class="public-trials-note">These agent-visible diagnostics guided migration revisions. They are separate from the independently owned workflow replay scores above and do not establish compatibility on their own.</p><div id="public-trials-list"></div></div></details>
+        <details class="artifact full"><summary>Generation manifest<span class="artifact-meta">PROVENANCE &amp; HASHES</span></summary><div class="artifact-content"><div class="codebox"><pre id="manifest-json">No generation manifest recorded.</pre></div></div></details>
+      </div>
+    </section>
+    <section class="section" id="bounds" aria-labelledby="bounds-title">
+      <div class="section-heading"><div class="section-title"><span class="section-index">04 /</span><h2 id="bounds-title">Claims have boundaries.</h2></div><p>Model usage and remaining limitations are part of the result, including the things this run did not establish.</p></div>
+      <div class="bottom-grid"><article class="usage-panel"><div class="usage-summary"><div><div class="label">Call attempts</div><div class="usage-value" id="usage-calls">—</div></div><div><div class="label">Recorded model time</div><div class="usage-value" id="usage-time">—</div></div><div><div class="label">Approximate cost</div><div class="usage-value small" id="usage-cost">Not observed</div></div></div><ol class="usage-list" id="usage-list"></ol><details class="integrity-box"><summary>Inspect integrity evidence</summary><pre id="integrity-json">No integrity evidence recorded.</pre></details></article><article class="limitations-panel"><ul class="limits" id="limitations-list"></ul></article></div>
+    </section>
+    <footer class="footer"><div><strong>REPRODUCIBLE EVIDENCE / NOT A LIVE GENERATION</strong><p>This is a static report from saved artifacts. Replaying a pinned adapter makes no model call. Use the repository’s demo and validation commands to reproduce the observations; use live generation explicitly to create a fresh adapter.</p></div><span class="folio">PARITY / ENGINEERING RECORD</span></footer>
+  </main>
+  <script>
+    "use strict";
+    const DATA = __PARITY_DATA__;
+    const report = DATA && typeof DATA === "object" ? DATA : {};
+    const evaluations = Array.isArray(report.evaluations) ? report.evaluations : [];
+    const usage = Array.isArray(report.usage) ? report.usage : [];
+    const summary = report.summary || {};
+    const artifact = report.artifact || {};
+    const manifest = artifact.manifest || {};
+    const $ = id => document.getElementById(id);
+    const text = (id, value) => { $(id).textContent = value == null ? "Not recorded" : String(value); };
+    const finite = value => typeof value === "number" && Number.isFinite(value);
+    const json = value => value == null ? "No evidence recorded." : JSON.stringify(value, null, 2);
+    const node = (tag, className, content) => { const result = document.createElement(tag); if (className) result.className = className; if (content != null) result.textContent = String(content); return result; };
+    const pretty = value => String(value || "Unnamed scenario").replaceAll("_", " ");
+    const fraction = (id, passed, total) => {
+      const target = $(id); target.replaceChildren();
+      if (!finite(passed) || !finite(total)) { target.textContent = "—"; return; }
+      target.append(document.createTextNode(String(passed)), node("span", "", "/ " + total));
+    };
+    const status = (id, label, tone) => { text(id, label); $(id).className = "status" + (tone ? " " + tone : ""); };
+    const median = values => { if (!values.length) return null; const sorted = [...values].sort((a,b) => a-b); const middle = Math.floor(sorted.length / 2); return sorted.length % 2 ? sorted[middle] : (sorted[middle-1]+sorted[middle])/2; };
+    const overhead = evaluation => {
+      const samples = [];
+      for (const scenario of evaluation.report?.scenarios || []) if (scenario.status === "pass") for (const action of scenario.actions || []) if (finite(action.v1_ms) && finite(action.adapter_ms)) samples.push(action.adapter_ms - action.v1_ms);
+      return median(samples);
+    };
+    if (report.generated_at) text("generated-at", "RECORDED / " + report.generated_at);
+    text("provenance", manifest.provenance ? pretty(manifest.provenance) : "Provenance not recorded");
+    if (!manifest.provenance || !String(manifest.provenance).includes("real-authenticated")) $("provenance").classList.add("warning");
+    text("report-status", summary.status || manifest.status || "No completion status recorded");
+    const direct = report.direct_break || {};
+    if (finite(direct.v1_status)) { status("path-v1", "HTTP " + direct.v1_status + (direct.v1_status < 400 ? " · works" : " · failed"), direct.v1_status < 400 ? "" : "fail"); text("path-v1-note", "Observed legacy checkout"); }
+    if (finite(direct.v2_status)) { status("path-v2", "HTTP " + direct.v2_status + (direct.v2_status >= 400 ? " · breaks" : " · accepted"), direct.v2_status >= 400 ? "fail" : "pending"); text("path-v2-note", "Same unchanged client request"); }
+    if (finite(summary.commerce_passed) && finite(summary.commerce_total)) { const passed = summary.commerce_passed === summary.commerce_total && summary.commerce_total > 0; status("path-adapter", summary.commerce_passed + " / " + summary.commerce_total + " matched", passed ? "" : "pending"); text("path-adapter-note", "Responses + money + inventory"); }
+    fraction("commerce-score", summary.commerce_passed, summary.commerce_total);
+    fraction("transfer-score", summary.transfer_passed, summary.transfer_total);
+    fraction("mutant-score", summary.mutants_rejected, summary.mutants_total);
+    text("call-count", usage.length || (finite(manifest.model_calls) ? manifest.model_calls : "—"));
+    text("model-note", usage.length ? "Saved provider call records (includes failures)" : "Provider usage not recorded");
+    const table = $("comparison-rows");
+    if (!evaluations.length) { const row = node("tr"); const cell = node("td", "muted", "No evaluations have been recorded."); cell.colSpan = 5; row.append(cell); table.append(row); }
+    evaluations.forEach((evaluation, index) => {
+      const value = evaluation.report || {};
+      const row = node("tr");
+      const nameCell = node("td"); nameCell.append(node("span", "candidate-name", evaluation.name || "Unnamed candidate"), node("span", "candidate-role", evaluation.role || "Role not recorded"));
+      const domainCell = node("td", "numeric", value.suite || "Not recorded");
+      const scoreCell = node("td");
+      if (value.generation_failure) { scoreCell.append(node("span", "candidate-name", "Workflows not run")); if (finite(value.not_run)) scoreCell.append(node("span", "candidate-role", value.not_run + " planned workflows · no compatibility score")); }
+      else if (finite(value.passed) && finite(value.total) && value.total > 0) { scoreCell.append(node("span", "result-fraction", value.passed + " / " + value.total)); const meter = node("div", "meter"); const fill = node("i"); fill.style.width = Math.min(100, Math.max(0, value.passed / value.total * 100)) + "%"; meter.append(fill); scoreCell.append(meter); }
+      else scoreCell.textContent = "Workflows not run";
+      const latency = overhead(evaluation);
+      const latencyCell = node("td", "numeric", latency == null ? "Not observed" : (latency > 0 ? "+" : "") + latency.toFixed(2) + " ms");
+      const resultCell = node("td");
+      const allPassed = value.total > 0 && value.passed === value.total;
+      const observed = finite(value.total) && finite(value.passed) && value.total > 0;
+      resultCell.append(node("span", "status" + (value.generation_failure || !observed ? " pending" : allPassed ? "" : " fail"), value.generation_failure ? "Generation rejected" : !observed ? "Unobserved" : allPassed ? "All matched" : "Mismatch observed"));
+      row.append(nameCell, domainCell, scoreCell, latencyCell, resultCell); table.append(row);
+      const option = node("option", "", (evaluation.name || "Candidate " + (index+1)) + " / " + (value.suite || "domain unknown")); option.value = String(index); $("candidate-select").append(option);
+    });
+    let selectedEvaluation = 0, selectedScenario = 0, selectedTab = "actions";
+    const currentScenario = () => evaluations[selectedEvaluation]?.report?.scenarios?.[selectedScenario];
+    function renderScenario() {
+      for (const tab of ["actions","effects","raw"]) $("tab-" + tab).setAttribute("aria-selected", String(tab === selectedTab));
+      $("scenario-content").setAttribute("aria-labelledby", "tab-" + selectedTab);
+      const scenario = currentScenario();
+      if (!scenario) { const value = evaluations[selectedEvaluation]?.report || {}; const rejected = Boolean(value.generation_failure); text("scenario-title", rejected ? "Generation rejected" : "No workflow evidence"); text("scenario-meta", rejected ? (finite(value.not_run) ? value.not_run + " planned workflows not run · no compatibility score" : "Workflows not run · no compatibility score") : "This candidate has no scenario records."); status("scenario-status", rejected ? "Not executed" : "Unobserved", "pending"); $("scenario-mismatch").hidden = !rejected; if (rejected) text("scenario-mismatch", value.generation_failure); text("trace-label", rejected ? "Generation-stage diagnostic; no replay was executed" : "Actual client / service observations"); text("scenario-json", rejected ? json({generation_failure:value.generation_failure,workflows_not_run:value.not_run ?? null,compatibility_score:null}) : "No workflow evidence has been recorded."); return; }
+      text("scenario-title", pretty(scenario.scenario));
+      const meta = [];
+      if (finite(scenario.seed)) meta.push("seed " + scenario.seed);
+      if (finite(scenario.elapsed_ms)) meta.push((scenario.elapsed_ms / 1000).toFixed(2) + "s total replay");
+      const digest = evaluations[selectedEvaluation]?.report?.artifact_sha256;
+      if (digest) meta.push("artifact " + String(digest).slice(0,12));
+      text("scenario-meta", meta.length ? meta.join(" · ") : "Timing and seed not recorded");
+      const tone = scenario.status === "pass" ? "" : scenario.status === "fail" ? "fail" : "pending";
+      status("scenario-status", scenario.status === "pass" ? "Matched" : scenario.status === "fail" ? "Mismatch" : "Unobserved", tone);
+      $("scenario-mismatch").hidden = !scenario.mismatch;
+      if (scenario.mismatch) text("scenario-mismatch", scenario.mismatch);
+      const values = {actions: scenario.actions, effects: scenario.effects ?? scenario.after, raw: scenario};
+      text("scenario-json", values[selectedTab] == null ? "No " + (selectedTab === "effects" ? "business effects" : "action trace") + " recorded for this scenario." : json(values[selectedTab]));
+      text("trace-label", selectedTab === "actions" ? "Actual client / service observations" : selectedTab === "effects" ? "Inspected business state; no blanket normalization" : "Complete saved scenario record");
+      $("scenario-content").setAttribute("aria-labelledby", "tab-" + selectedTab);
+      for (const tab of ["actions","effects","raw"]) $("tab-" + tab).setAttribute("aria-selected", String(tab === selectedTab));
+      [...$("scenario-list").children].forEach((button, i) => button.setAttribute("aria-pressed", String(i === selectedScenario)));
+    }
+    function renderScenarioList() {
+      const list = $("scenario-list"); list.replaceChildren();
+      const scenarios = evaluations[selectedEvaluation]?.report?.scenarios || [];
+      scenarios.forEach((scenario, index) => { const button = node("button", "scenario-button" + (scenario.status === "fail" ? " fail" : ""), pretty(scenario.scenario)); button.type = "button"; button.setAttribute("aria-pressed", String(index === selectedScenario)); button.addEventListener("click", () => { selectedScenario = index; renderScenario(); }); list.append(button); });
+      if (!scenarios.length) list.append(node("p", "empty", "No workflow records"));
+      renderScenario();
+    }
+    $("candidate-select").disabled = !evaluations.length;
+    $("candidate-select").addEventListener("change", event => { selectedEvaluation = Number(event.target.value); selectedScenario = 0; renderScenarioList(); });
+    for (const name of ["actions","effects","raw"]) $("tab-" + name).addEventListener("click", () => { selectedTab = name; renderScenario(); });
+    renderScenarioList();
+    text("delta-json", json(artifact.delta));
+    if (Array.isArray(artifact.delta?.changes)) text("delta-count", artifact.delta.changes.length + " RECORDED CHANGES");
+    text("plan-json", json(artifact.plan));
+    if (artifact.plan?.revision != null) text("plan-version", "REVISION " + artifact.plan.revision);
+    text("source-code", artifact.source || "No generated source recorded.");
+    if (manifest.adapter_sha256) text("source-digest", "SHA256 / " + String(manifest.adapter_sha256).slice(0,12));
+    text("manifest-json", json(artifact.manifest));
+    const revisions = Array.isArray(artifact.revisions) ? artifact.revisions : [];
+    if (!revisions.length) $("revision-list").append(node("p", "table-note", "No source revision diff recorded. No source repair is claimed."));
+    revisions.forEach(revision => { const block = node("section", "revision"); block.append(node("h3", "", revision.name || "Recorded revision")); const box = node("div", "codebox"); box.append(node("pre", "", revision.diff || "No diff content recorded.")); block.append(box); $("revision-list").append(block); });
+    const publicTrials = Array.isArray(artifact.public_trials) ? artifact.public_trials : [];
+    if (publicTrials.length) {
+      $("public-trials-panel").hidden = false;
+      text("public-trials-count", publicTrials.length + " RECORDED TRIALS · PUBLIC");
+      publicTrials.forEach(trial => {
+        const block = node("article", "public-trial");
+        const heading = node("div", "public-trial-header");
+        heading.append(node("h3", "", trial.revision == null ? "Revision not recorded" : "Source revision / " + String(trial.revision)));
+        const observed = typeof trial.passed === "boolean";
+        heading.append(node("span", "status" + (!observed ? " pending" : trial.passed ? "" : " fail"), !observed ? "Result unobserved" : trial.passed ? "Public checks passed" : "Public checks failed"));
+        block.append(heading);
+        if (trial.diagnostic != null) block.append(node("div", "failure", typeof trial.diagnostic === "string" ? trial.diagnostic : json(trial.diagnostic)));
+        block.append(node("div", "trace-label", "Recorded diagnostic steps"));
+        const box = node("div", "codebox");
+        box.append(node("pre", "", Array.isArray(trial.steps) ? json(trial.steps) : "No diagnostic steps recorded."));
+        block.append(box);
+        $("public-trials-list").append(block);
+      });
+    }
+    for (const button of document.querySelectorAll("[data-copy]")) button.addEventListener("click", async () => {
+      const value = $(button.dataset.copy)?.textContent || "";
+      try { await navigator.clipboard.writeText(value); const original = button.textContent; button.textContent = "Copied"; setTimeout(() => { button.textContent = original; }, 1500); }
+      catch { button.textContent = "Select text to copy"; }
+    });
+    text("usage-calls", usage.length || (finite(manifest.model_calls) ? manifest.model_calls : "Not recorded"));
+    const timed = usage.filter(call => finite(call.elapsed_s));
+    text("usage-time", timed.length ? timed.reduce((sum,call) => sum + call.elapsed_s,0).toFixed(1) + "s" : "Not observed");
+    const costs = usage.filter(call => finite(call.cost_usd));
+    text("usage-cost", costs.length === usage.length && usage.length ? "$" + costs.reduce((sum,call) => sum + call.cost_usd,0).toFixed(4) : "Not observed");
+    if (!usage.length) $("usage-list").append(node("li", "muted", "No provider usage records included."));
+    usage.forEach((call,index) => { const item = node("li"); item.append(node("span", "call-number", String(index+1).padStart(2,"0"))); const info = node("div", "", call.provider || "Provider not recorded"); info.append(node("span", "model-name", call.model_observed || call.model_requested || "CLI default / not disclosed")); item.append(info,node("span", "duration", finite(call.elapsed_s) ? call.elapsed_s.toFixed(1) + "s" : "Time unobserved")); $("usage-list").append(item); });
+    text("integrity-json", json(report.integrity));
+    const limitations = Array.isArray(report.limitations) ? report.limitations : [];
+    if (!limitations.length) $("limitations-list").append(node("li", "", "Limitations were not included in this report. No broader compatibility claim can be inferred."));
+    limitations.forEach(value => $("limitations-list").append(node("li", "", typeof value === "string" ? value : json(value))));
+  </script>
+</body>
+</html>

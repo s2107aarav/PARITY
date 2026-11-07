@@ -1,0 +1,49 @@
+{
+  "passed": false,
+  "steps": [
+    {
+      "request": "POST /checkout",
+      "status": 201,
+      "body": {
+        "id": 1,
+        "status": "paid",
+        "amount": 1250,
+        "items": [
+          {
+            "sku": "COFFEE",
+            "quantity": 1
+          }
+        ]
+      }
+    },
+    {
+      "request": "declined checkout",
+      "status": 402,
+      "body": {
+        "error": "PAYMENT_DECLINED"
+      }
+    },
+    {
+      "request": "lost payment reply",
+      "status": 503,
+      "body": {
+        "error": "PENDING"
+      }
+    },
+    {
+      "request": "insufficient stock AND wrong amount",
+      "status": 422,
+      "body": {
+        "error": "AMOUNT_MISMATCH"
+      },
+      "expected": {
+        "status": 409,
+        "body": {
+          "error": "OUT_OF_STOCK"
+        }
+      }
+    }
+  ],
+  "diagnostic": "AssertionError: legacy error precedence differs: V1 checks stock before amount; actual result above",
+  "scope": "public smoke checks only"
+}

@@ -1,0 +1,173 @@
+{
+  "suite": "moderated",
+  "checker_sha256": "c2b74d5813a773ac955d861f39fd2b8f6baf79283ba1e1c2c466ccde1ddbf547",
+  "source_sha256": "df88a97d9eb31a84b393aaa788b92a725a27b5fc9e953f2a65e32d6c24cf88c3",
+  "scenarios": [
+    {
+      "scenario": "ordinary",
+      "status": "pass",
+      "expected": {
+        "title": "Printer broken",
+        "body": "Paper jam",
+        "id": 1,
+        "status": "open"
+      },
+      "actual": {
+        "id": 1,
+        "title": "Printer broken",
+        "body": "Paper jam",
+        "status": "open"
+      },
+      "actual_status": 201,
+      "after": {
+        "requests": {
+          "challenge": {
+            "id": "aa294669-b1ea-4ce4-a6cd-aa3a79083100",
+            "summary": "Printer broken"
+          }
+        },
+        "approvals": {
+          "aa294669-b1ea-4ce4-a6cd-aa3a79083100": {
+            "issue_ref": "aa294669-b1ea-4ce4-a6cd-aa3a79083100",
+            "receipt": "655b6296-a5f4-4703-9f13-b8bf966f0968"
+          }
+        },
+        "issues": {
+          "aa294669-b1ea-4ce4-a6cd-aa3a79083100": {
+            "comments": [
+              "Paper jam"
+            ],
+            "ref": "aa294669-b1ea-4ce4-a6cd-aa3a79083100",
+            "state": "open",
+            "summary": "Printer broken"
+          }
+        }
+      }
+    },
+    {
+      "scenario": "approval_loss_restart",
+      "status": "pass",
+      "expected": {
+        "title": "Printer broken",
+        "body": "Paper jam",
+        "id": 1,
+        "status": "open"
+      },
+      "actual": {
+        "id": 1,
+        "title": "Printer broken",
+        "body": "Paper jam",
+        "status": "open"
+      },
+      "actual_status": 201,
+      "after": {
+        "requests": {
+          "challenge": {
+            "id": "4fef04db-a72c-4f7a-b5de-506d05743306",
+            "summary": "Printer broken"
+          }
+        },
+        "approvals": {
+          "4fef04db-a72c-4f7a-b5de-506d05743306": {
+            "issue_ref": "4fef04db-a72c-4f7a-b5de-506d05743306",
+            "receipt": "091bda8b-e3db-470e-9bd8-7fe469e922b5"
+          }
+        },
+        "issues": {
+          "4fef04db-a72c-4f7a-b5de-506d05743306": {
+            "comments": [
+              "Paper jam"
+            ],
+            "ref": "4fef04db-a72c-4f7a-b5de-506d05743306",
+            "state": "open",
+            "summary": "Printer broken"
+          }
+        }
+      }
+    },
+    {
+      "scenario": "publication_loss_restart",
+      "status": "pass",
+      "expected": {
+        "title": "Printer broken",
+        "body": "Paper jam",
+        "id": 1,
+        "status": "open"
+      },
+      "actual": {
+        "id": 1,
+        "title": "Printer broken",
+        "body": "Paper jam",
+        "status": "open"
+      },
+      "actual_status": 201,
+      "after": {
+        "requests": {
+          "challenge": {
+            "id": "d8b2d8f3-6aa2-4eb7-83b6-9d957ec088a7",
+            "summary": "Printer broken"
+          }
+        },
+        "approvals": {
+          "d8b2d8f3-6aa2-4eb7-83b6-9d957ec088a7": {
+            "issue_ref": "d8b2d8f3-6aa2-4eb7-83b6-9d957ec088a7",
+            "receipt": "565251c5-a2b9-44b2-a6eb-61a08f26213c"
+          }
+        },
+        "issues": {
+          "d8b2d8f3-6aa2-4eb7-83b6-9d957ec088a7": {
+            "comments": [
+              "Paper jam"
+            ],
+            "ref": "d8b2d8f3-6aa2-4eb7-83b6-9d957ec088a7",
+            "state": "open",
+            "summary": "Printer broken"
+          }
+        }
+      }
+    },
+    {
+      "scenario": "key_conflict",
+      "status": "pass",
+      "expected": {
+        "title": "Printer broken",
+        "body": "Paper jam",
+        "id": 1,
+        "status": "open"
+      },
+      "actual": {
+        "id": 1,
+        "title": "Printer broken",
+        "body": "Paper jam",
+        "status": "open"
+      },
+      "actual_status": 201,
+      "after": {
+        "requests": {
+          "challenge": {
+            "id": "51885bf2-8e0f-4a6f-9c9a-31da0cd8412e",
+            "summary": "Printer broken"
+          }
+        },
+        "approvals": {
+          "51885bf2-8e0f-4a6f-9c9a-31da0cd8412e": {
+            "issue_ref": "51885bf2-8e0f-4a6f-9c9a-31da0cd8412e",
+            "receipt": "0d55ddf9-2549-480a-a521-f3fb0c05d195"
+          }
+        },
+        "issues": {
+          "51885bf2-8e0f-4a6f-9c9a-31da0cd8412e": {
+            "comments": [
+              "Paper jam"
+            ],
+            "ref": "51885bf2-8e0f-4a6f-9c9a-31da0cd8412e",
+            "state": "open",
+            "summary": "Printer broken"
+          }
+        }
+      }
+    }
+  ],
+  "passed": 4,
+  "total": 4
+}

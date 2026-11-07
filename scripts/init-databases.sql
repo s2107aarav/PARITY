@@ -1,0 +1,2 @@
+CREATE DATABASE parity_v1;
+CREATE DATABASE parity_v2;

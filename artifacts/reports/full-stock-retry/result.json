@@ -1,0 +1,27 @@
+{
+  "status": "pass",
+  "fault": "reserve.after",
+  "quantity": 30,
+  "pending_status": 503,
+  "retry_status": 201,
+  "effects": {
+    "orders": [
+      {
+        "status": "paid",
+        "amount": 37500,
+        "items": [
+          {
+            "quantity": 30,
+            "sku": "COFFEE"
+          }
+        ]
+      }
+    ],
+    "inventory": {
+      "TEA": 20,
+      "COFFEE": 0
+    },
+    "charges": 37500,
+    "refunds": 0
+  }
+}

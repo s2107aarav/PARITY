@@ -1,0 +1,259 @@
+{
+  "scenario": "rejected_key_reuse",
+  "seed": 0,
+  "status": "pass",
+  "before": {
+    "v1": {
+      "inventory": {
+        "COFFEE": {
+          "price": 1250,
+          "sku": "COFFEE",
+          "stock": 30
+        },
+        "TEA": {
+          "price": 750,
+          "sku": "TEA",
+          "stock": 20
+        }
+      }
+    },
+    "v2": {
+      "inventory": {
+        "COFFEE": {
+          "price": 1250,
+          "sku": "COFFEE",
+          "stock": 30
+        },
+        "TEA": {
+          "price": 750,
+          "sku": "TEA",
+          "stock": 20
+        }
+      }
+    }
+  },
+  "effects": {
+    "orders": [
+      {
+        "status": "paid",
+        "amount": 1250,
+        "items": [
+          {
+            "quantity": 1,
+            "sku": "COFFEE"
+          }
+        ]
+      }
+    ],
+    "inventory": {
+      "TEA": 20,
+      "COFFEE": 29
+    },
+    "charges": 1250,
+    "refunds": 0
+  },
+  "isolation": "macOS Seatbelt; explicit read roots; loopback upstream only",
+  "actions": [
+    {
+      "action": "checkout",
+      "input": {
+        "method": "POST",
+        "path": "/checkout",
+        "query": "",
+        "body": {
+          "items": [
+            {
+              "sku": "COFFEE",
+              "quantity": 1
+            }
+          ],
+          "amount": 1250,
+          "payment_token": "declined"
+        }
+      },
+      "expected_status": 402,
+      "actual_status": 402,
+      "expected": {
+        "error": "PAYMENT_DECLINED"
+      },
+      "actual": {
+        "error": "PAYMENT_DECLINED"
+      },
+      "v1_ms": 3.533,
+      "adapter_ms": 26.062
+    },
+    {
+      "action": "checkout",
+      "input": {
+        "method": "POST",
+        "path": "/checkout",
+        "query": "",
+        "body": {
+          "items": [
+            {
+              "sku": "COFFEE",
+              "quantity": 1
+            }
+          ],
+          "amount": 1250,
+          "payment_token": "ok"
+        }
+      },
+      "expected_status": 201,
+      "actual_status": 201,
+      "expected": {
+        "id": 1,
+        "status": "paid",
+        "amount": 1250,
+        "items": [
+          {
+            "sku": "COFFEE",
+            "quantity": 1
+          }
+        ]
+      },
+      "actual": {
+        "id": 1,
+        "status": "paid",
+        "amount": 1250,
+        "items": [
+          {
+            "sku": "COFFEE",
+            "quantity": 1
+          }
+        ]
+      },
+      "v1_ms": 2.977,
+      "adapter_ms": 19.64
+    }
+  ],
+  "after": {
+    "v1": {
+      "inventory": {
+        "TEA": {
+          "price": 750,
+          "sku": "TEA",
+          "stock": 20
+        },
+        "COFFEE": {
+          "price": 1250,
+          "sku": "COFFEE",
+          "stock": 29
+        }
+      },
+      "counters": {
+        "orders": 1
+      },
+      "orders": {
+        "1": {
+          "amount": 1250,
+          "id": 1,
+          "items": [
+            {
+              "quantity": 1,
+              "sku": "COFFEE"
+            }
+          ],
+          "status": "paid"
+        }
+      },
+      "payments": {
+        "charge:1": {
+          "amount": 1250,
+          "kind": "charge",
+          "order_id": 1
+        }
+      },
+      "requests": {
+        "corrected": {
+          "fingerprint": "8e24a2d30a1ff7444ba8e104aeec830df3ef2f41efc38ff64d8ce31e23903fc3",
+          "id": 1
+        }
+      }
+    },
+    "v2": {
+      "inventory": {
+        "TEA": {
+          "price": 750,
+          "sku": "TEA",
+          "stock": 20
+        },
+        "COFFEE": {
+          "price": 1250,
+          "sku": "COFFEE",
+          "stock": 29
+        }
+      },
+      "requests": {
+        "draft:1:corrected": {
+          "fingerprint": "797911b8b4eaebcdc2a8a27d2da9820c6b418336adbe211571fa955a5a019357",
+          "ref": "c0db7eb0-e422-4798-bb45-f5621da91006"
+        },
+        "draft:2:corrected": {
+          "fingerprint": "797911b8b4eaebcdc2a8a27d2da9820c6b418336adbe211571fa955a5a019357",
+          "ref": "e3931078-a57e-4765-afa2-adca5b4897df"
+        }
+      },
+      "reservations": {
+        "c0db7eb0-e422-4798-bb45-f5621da91006": {
+          "order_ref": "c0db7eb0-e422-4798-bb45-f5621da91006",
+          "quantities": {
+            "COFFEE": 1
+          },
+          "state": "released"
+        },
+        "e3931078-a57e-4765-afa2-adca5b4897df": {
+          "order_ref": "e3931078-a57e-4765-afa2-adca5b4897df",
+          "quantities": {
+            "COFFEE": 1
+          },
+          "state": "held"
+        }
+      },
+      "orders": {
+        "c0db7eb0-e422-4798-bb45-f5621da91006": {
+          "lines": [
+            {
+              "product_code": "COFFEE",
+              "units": 1
+            }
+          ],
+          "order_ref": "c0db7eb0-e422-4798-bb45-f5621da91006",
+          "phase": "cancelled",
+          "sequence": 1,
+          "total_minor": 1250
+        },
+        "e3931078-a57e-4765-afa2-adca5b4897df": {
+          "lines": [
+            {
+              "product_code": "COFFEE",
+              "units": 1
+            }
+          ],
+          "order_ref": "e3931078-a57e-4765-afa2-adca5b4897df",
+          "phase": "confirmed",
+          "sequence": 2,
+          "total_minor": 1250
+        }
+      },
+      "counters": {
+        "orders": 2
+      },
+      "payments": {
+        "charge:e3931078-a57e-4765-afa2-adca5b4897df": {
+          "amount": 1250,
+          "fingerprint": "39bbf7035103b97c0b374fbf0e02381934485551571c6fae2859879594e76e39",
+          "kind": "charge",
+          "order_ref": "e3931078-a57e-4765-afa2-adca5b4897df",
+          "payment_ref": "122bb155-ba9d-49ae-ad5d-9ebe2ebdf312"
+        }
+      },
+      "payment_keys": {
+        "payment:2:corrected": {
+          "fingerprint": "39bbf7035103b97c0b374fbf0e02381934485551571c6fae2859879594e76e39"
+        }
+      }
+    }
+  },
+  "elapsed_ms": 1256.497
+}

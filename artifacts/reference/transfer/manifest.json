@@ -1,0 +1,6 @@
+{
+  "provenance": "manually-authored-reference",
+  "domain": "transfer",
+  "adapter_sha256": "fe62c2bb6dabc08959577aa87c598b81f75c8eada80bddccf6ecabda58ec5d50",
+  "note": "Engineering calibration, never supplied to model; not counted as AI generation."
+}

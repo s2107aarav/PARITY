@@ -1,0 +1,16 @@
+{
+  "passed": true,
+  "steps": [
+    {
+      "request": "POST /tickets",
+      "status": 201,
+      "body": {
+        "id": 1,
+        "title": "Login broken",
+        "body": "Cannot sign in",
+        "status": "open"
+      }
+    }
+  ],
+  "scope": "public smoke checks only"
+}

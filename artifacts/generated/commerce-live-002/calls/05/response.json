@@ -1,0 +1,1 @@
+{"tool":"run_tests","arguments":"{}","reason":"Run public checks on the accepted revision, including the observed stock-versus-amount precedence failure and lost-payment-response recovery."}

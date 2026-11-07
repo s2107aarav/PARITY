@@ -1,0 +1,16 @@
+{
+  "provider": "codex-cli",
+  "model_requested": null,
+  "model_observed": null,
+  "cli_version": "codex-cli 0.153.4",
+  "usage": {
+    "input_tokens": 27132,
+    "cached_input_tokens": 9216,
+    "cache_write_input_tokens": 0,
+    "output_tokens": 1289,
+    "reasoning_output_tokens": 50
+  },
+  "elapsed_s": 31.125,
+  "cost_usd": null,
+  "exit_code": 0
+}

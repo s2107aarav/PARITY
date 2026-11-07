@@ -1,0 +1,311 @@
+from parity.runtime import UpstreamError
+import re
+
+
+ERRORS = {
+    'PRODUCT_MISSING': (404, 'UNKNOWN_SKU'),
+    'BAD_TOTAL': (422, 'AMOUNT_MISMATCH'),
+    'DECLINED': (402, 'PAYMENT_DECLINED'),
+    'INSUFFICIENT_STOCK': (409, 'OUT_OF_STOCK'),
+    'KEY_CONFLICT': (409, 'KEY_REUSED'),
+    'MISSING_RESOURCE': (404, 'NOT_FOUND'),
+    'INVALID_INPUT': (422, 'INVALID'),
+}
+
+
+def err(status, code):
+    return status, {'error': code}
+
+
+def pending():
+    return err(503, 'PENDING')
+
+
+def mapped(exc):
+    if exc.status >= 500:
+        return pending()
+    data = exc.data if isinstance(exc.data, dict) else {}
+    problem = data.get('problem', {})
+    kind = problem.get('kind') if isinstance(problem, dict) else None
+    if kind in ERRORS:
+        status, code = ERRORS[kind]
+        return err(status, code)
+    if exc.status == 422:
+        return err(422, 'INVALID')
+    if exc.status == 404:
+        return err(404, 'NOT_FOUND')
+    return err(exc.status, kind if isinstance(kind, str) else 'UPSTREAM_ERROR')
+
+
+def integer(value):
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
+def valid_checkout(body, key):
+    if not isinstance(key, str) or not 1 <= len(key) <= 120:
+        return False
+    if not isinstance(body, dict) or set(body) != {'items', 'amount', 'payment_token'}:
+        return False
+    if not integer(body['amount']) or body['amount'] <= 0:
+        return False
+    if not isinstance(body['payment_token'], str):
+        return False
+    items = body['items']
+    if not isinstance(items, list) or not 1 <= len(items) <= 20:
+        return False
+    for item in items:
+        if not isinstance(item, dict) or set(item) != {'sku', 'quantity'}:
+            return False
+        if not isinstance(item['sku'], str):
+            return False
+        if not integer(item['quantity']) or not 1 <= item['quantity'] <= 10000:
+            return False
+    return True
+
+
+def number(text):
+    if isinstance(text, str) and re.fullmatch(r'[+-]?[0-9]+', text.strip()):
+        try:
+            return int(text.strip())
+        except ValueError:
+            return None
+    return None
+
+
+def quote_segment(value):
+    safe = b'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~'
+    return ''.join(chr(byte) if byte in safe else '%%%02X' % byte for byte in value.encode('utf-8'))
+
+
+def order_path(ref):
+    return '/orders/' + quote_segment(ref)
+
+
+def snapshot_key(ref):
+    return 'commerce:v1:order:' + ref
+
+
+def cancel_key(ref):
+    return 'commerce:v1:cancel:' + ref
+
+
+def public_order(order, ident):
+    phase = order.get('phase')
+    if phase not in ('confirmed', 'cancelled'):
+        return None
+    return {
+        'id': ident,
+        'status': 'paid' if phase == 'confirmed' else 'cancelled',
+        'amount': order['total_minor'],
+        'items': [{'sku': line['product_code'], 'quantity': line['units']} for line in order['lines']],
+    }
+
+
+def finish_cancel(ctx, ref, ident):
+    key = cancel_key(ref)
+    state = ctx.get(key)
+    if state and state.get('done'):
+        order = ctx.get(snapshot_key(ref))
+        if order and order.get('phase') == 'cancelled':
+            return 200, public_order(order, ident)
+    if not state:
+        ctx.put(key, {'done': False})
+    try:
+        order = ctx.call('POST', order_path(ref) + '/void')
+    except UpstreamError:
+        # The intent remains durable. A failed void never reports cancellation.
+        return pending()
+    if not isinstance(order, dict) or order.get('phase') != 'cancelled':
+        return pending()
+    ctx.put(snapshot_key(ref), order)
+    ctx.put(key, {'done': True})
+    return 200, public_order(order, ident)
+
+
+def read_order(ctx, ref, ident):
+    cancellation = ctx.get(cancel_key(ref))
+    if cancellation and not cancellation.get('done'):
+        return finish_cancel(ctx, ref, ident)
+    order = ctx.call('GET', order_path(ref))
+    result = public_order(order, ident)
+    if result is None:
+        return pending()
+    ctx.put(snapshot_key(ref), order)
+    return 200, result
+
+
+def compensate(ctx, key, state):
+    try:
+        order = ctx.call('POST', order_path(state['ref']) + '/void')
+    except UpstreamError:
+        return pending()
+    if not isinstance(order, dict) or order.get('phase') != 'cancelled':
+        return pending()
+    state['step'] = 'failed'
+    ctx.put(key, state)
+    return state['failure'][0], state['failure'][1]
+
+
+def checkout(ctx, body, headers, query):
+    legacy_key = headers.get('idempotency-key')
+    if not valid_checkout(body, legacy_key):
+        return err(422, 'INVALID')
+    key_digest = ctx.digest({'namespace': 'commerce-v1-checkout', 'key': legacy_key})
+    store_key = 'commerce:v1:checkout:' + key_digest
+    fingerprint = ctx.digest({'method': 'POST', 'path': '/checkout', 'idempotency-key': legacy_key, 'body': body})
+    state = ctx.get(store_key)
+    if state and state['step'] != 'failed':
+        if state['fingerprint'] != fingerprint:
+            return err(409, 'KEY_REUSED')
+        if state['step'] == 'done':
+            status, data = read_order(ctx, state['ref'], ctx.id_for(state['ref']))
+            return (201, data) if status == 200 else (status, data)
+        if state['step'] == 'compensate':
+            return compensate(ctx, store_key, state)
+    else:
+        attempt = state['attempt'] + 1 if state else 1
+        # Save the entire input before the first effect. Identity deliberately
+        # follows the V1 key/body contract, ignoring irrelevant transport fields.
+        state = {
+            'attempt': attempt,
+            'fingerprint': fingerprint,
+            'request_fingerprint': ctx.digest({'method': 'POST', 'path': '/checkout', 'body': body, 'query': query, 'headers': headers}),
+            'input': body,
+            'step': 'draft',
+            'draft_key': 'v1-draft-' + ctx.digest({'key': legacy_key, 'attempt': attempt}),
+            'payment_key': 'v1-payment-' + ctx.digest({'key': legacy_key, 'attempt': attempt}),
+        }
+        ctx.put(store_key, state)
+    original = state['input']
+    while True:
+        step = state['step']
+        if step == 'publish':
+            order = state['confirmed']
+            # Snapshot before publishing: a crash cannot expose a mapping
+            # without a confirmed snapshot. id_for itself is restart-stable.
+            ctx.put(snapshot_key(state['ref']), order)
+            ident = ctx.id_for(state['ref'])
+            state['step'] = 'done'
+            ctx.put(store_key, state)
+            return 201, public_order(order, ident)
+        try:
+            if step == 'draft':
+                draft = {
+                    'lines': [{'product_code': x['sku'], 'units': x['quantity']} for x in original['items']],
+                    'total_minor': original['amount'],
+                }
+                order = ctx.call('POST', '/orders', body=draft, headers={'idempotency-key': state['draft_key']})
+                if not isinstance(order, dict) or not isinstance(order.get('order_ref'), str):
+                    return pending()
+                state['ref'] = order['order_ref']
+                state['step'] = 'reserve'
+                ctx.put(store_key, state)
+            elif step == 'reserve':
+                ctx.call('POST', '/inventory/reservations', body={'order_ref': state['ref']})
+                state['step'] = 'pay'
+                ctx.put(store_key, state)
+            elif step == 'pay':
+                ctx.call('POST', '/payments', body={
+                    'order_ref': state['ref'],
+                    'total_minor': original['amount'],
+                    'token': original['payment_token'],
+                }, headers={'idempotency-key': state['payment_key']})
+                state['step'] = 'confirm'
+                ctx.put(store_key, state)
+            elif step == 'confirm':
+                order = ctx.call('POST', order_path(state['ref']) + '/confirm')
+                if not isinstance(order, dict) or order.get('phase') != 'confirmed':
+                    return pending()
+                state['confirmed'] = order
+                state['step'] = 'publish'
+                ctx.put(store_key, state)
+            else:
+                return pending()
+        except UpstreamError as exc:
+            # Never void after an ambiguous payment (or any ambiguous step).
+            # The saved step and exact keys recover committed lost responses.
+            if exc.status >= 500:
+                return pending()
+            failure = mapped(exc)
+            state['failure'] = [failure[0], failure[1]]
+            if 'ref' in state:
+                state['step'] = 'compensate'
+                ctx.put(store_key, state)
+                return compensate(ctx, store_key, state)
+            state['step'] = 'failed'
+            ctx.put(store_key, state)
+            return failure
+
+
+def list_orders(ctx, query):
+    page = number(query.get('page', '1'))
+    size = number(query.get('page_size', '2'))
+    if page is None or size is None or page < 1 or not 1 <= size <= 100:
+        return err(422, 'INVALID')
+    # Calling id_for here only looks up already-published references.
+    refs = sorted([(ctx.id_for(ref), ref) for ref in ctx.mappings()])
+    selected = refs[(page - 1) * size:page * size]
+    orders = []
+    calls = 0
+    for ident, ref in selected:
+        cancellation = ctx.get(cancel_key(ref))
+        if cancellation and not cancellation.get('done'):
+            # Do not turn an unresolved cancellation into a stale success.
+            return pending()
+        order = ctx.get(snapshot_key(ref))
+        if order is None:
+            if calls >= 75:
+                return pending()
+            calls += 1
+            order = ctx.call('GET', order_path(ref))
+            if public_order(order, ident) is None:
+                return pending()
+            ctx.put(snapshot_key(ref), order)
+        result = public_order(order, ident)
+        if result is None:
+            return pending()
+        orders.append(result)
+    return 200, {'orders': orders, 'total': len(refs), 'page': page, 'page_size': size}
+
+
+def dispatch(ctx, method, path, body, query, headers):
+    if path == '/checkout':
+        if method != 'POST':
+            return err(405, 'METHOD_NOT_ALLOWED')
+        return checkout(ctx, body, headers, query)
+    if path == '/orders':
+        if method != 'GET':
+            return err(405, 'METHOD_NOT_ALLOWED')
+        return list_orders(ctx, query)
+    match = re.fullmatch(r'/orders/([^/]+)(/cancel)?', path)
+    if match:
+        cancelling = match.group(2) is not None
+        if method != ('POST' if cancelling else 'GET'):
+            return err(405, 'METHOD_NOT_ALLOWED')
+        ident = number(match.group(1))
+        if ident is None:
+            return err(422, 'INVALID')
+        if ident <= 0:
+            return err(404, 'NOT_FOUND')
+        ref = ctx.upstream_id(ident)
+        if ref is None:
+            return err(404, 'NOT_FOUND')
+        if cancelling:
+            return finish_cancel(ctx, ref, ident)
+        return read_order(ctx, ref, ident)
+    match = re.fullmatch(r'/inventory/([^/]+)', path)
+    if match:
+        if method != 'GET':
+            return err(405, 'METHOD_NOT_ALLOWED')
+        sku = match.group(1)
+        stock = ctx.call('GET', '/stock/' + quote_segment(sku))
+        return 200, {'sku': stock['product_code'], 'available': stock['units_available']}
+    return err(404, 'NOT_FOUND')
+
+
+def handle(ctx, method: str, path: str, body: dict | None, query: dict[str, str], headers: dict[str, str]):
+    with ctx.lock():
+        try:
+            return dispatch(ctx, method.upper(), path, body, query, headers)
+        except UpstreamError as exc:
+            return mapped(exc)

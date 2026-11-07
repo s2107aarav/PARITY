@@ -1,0 +1,4 @@
+{
+  "exit_code": 2,
+  "reason": "relative --out path failed after all replay checks and report render; fixed in CLI; successful fresh-environment replay preserved separately in clean-demo"
+}

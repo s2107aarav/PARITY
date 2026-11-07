@@ -1,0 +1,1 @@
+{"tool":"run_tests","arguments":"{}","reason":"Run public tests against the accepted adapter to verify validation, idempotency, and recovery before finishing."}

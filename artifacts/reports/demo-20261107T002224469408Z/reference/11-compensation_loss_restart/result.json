@@ -1,0 +1,114 @@
+{
+  "scenario": "compensation_loss_restart",
+  "seed": 0,
+  "status": "pass",
+  "before": {
+    "v1": {
+      "inventory": {
+        "COFFEE": {
+          "price": 1250,
+          "sku": "COFFEE",
+          "stock": 30
+        },
+        "TEA": {
+          "price": 750,
+          "sku": "TEA",
+          "stock": 20
+        }
+      }
+    },
+    "v2": {
+      "inventory": {
+        "COFFEE": {
+          "price": 1250,
+          "sku": "COFFEE",
+          "stock": 30
+        },
+        "TEA": {
+          "price": 750,
+          "sku": "TEA",
+          "stock": 20
+        }
+      }
+    }
+  },
+  "effects": {
+    "orders": [],
+    "inventory": {
+      "COFFEE": 30,
+      "TEA": 20
+    },
+    "charges": 0,
+    "refunds": 0
+  },
+  "isolation": "macOS Seatbelt; explicit read roots; loopback upstream only",
+  "actions": [
+    {
+      "action": "compensation failure then retry",
+      "status": "matched"
+    }
+  ],
+  "after": {
+    "v1": {
+      "inventory": {
+        "COFFEE": {
+          "price": 1250,
+          "sku": "COFFEE",
+          "stock": 30
+        },
+        "TEA": {
+          "price": 750,
+          "sku": "TEA",
+          "stock": 20
+        }
+      }
+    },
+    "v2": {
+      "inventory": {
+        "TEA": {
+          "price": 750,
+          "sku": "TEA",
+          "stock": 20
+        },
+        "COFFEE": {
+          "price": 1250,
+          "sku": "COFFEE",
+          "stock": 30
+        }
+      },
+      "counters": {
+        "orders": 1
+      },
+      "requests": {
+        "draft:1:compensate": {
+          "fingerprint": "797911b8b4eaebcdc2a8a27d2da9820c6b418336adbe211571fa955a5a019357",
+          "ref": "41b10d4c-8381-4d08-b0c5-cd579d21deb8"
+        }
+      },
+      "reservations": {
+        "41b10d4c-8381-4d08-b0c5-cd579d21deb8": {
+          "order_ref": "41b10d4c-8381-4d08-b0c5-cd579d21deb8",
+          "quantities": {
+            "COFFEE": 1
+          },
+          "state": "released"
+        }
+      },
+      "orders": {
+        "41b10d4c-8381-4d08-b0c5-cd579d21deb8": {
+          "lines": [
+            {
+              "product_code": "COFFEE",
+              "units": 1
+            }
+          ],
+          "order_ref": "41b10d4c-8381-4d08-b0c5-cd579d21deb8",
+          "phase": "cancelled",
+          "sequence": 1,
+          "total_minor": 1250
+        }
+      }
+    }
+  },
+  "elapsed_ms": 1957.276
+}

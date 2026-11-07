@@ -1,0 +1,10 @@
+{
+  "provider": "codex-cli",
+  "model_requested": null,
+  "model_observed": null,
+  "cli_version": "codex-cli 0.153.4",
+  "usage": null,
+  "elapsed_s": 3.045,
+  "cost_usd": null,
+  "exit_code": 1
+}

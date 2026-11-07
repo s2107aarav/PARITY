@@ -1,0 +1,1529 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Commerce V2",
+    "version": "2.0.0"
+  },
+  "paths": {
+    "/orders": {
+      "post": {
+        "summary": "Draft",
+        "description": "Idempotent draft; validates catalog and total before any effects. UUID order_ref.\nA reused key with different input is KEY_CONFLICT. Stock is checked during reserve.",
+        "operationId": "create_draft",
+        "parameters": [
+          {
+            "name": "idempotency-key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Draft"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Order"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Business error; see notes.md for operation-specific codes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "problem": {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "problem"
+                  ]
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Business error; see notes.md for operation-specific codes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "problem": {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "problem"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Business error; see notes.md for operation-specific codes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "problem": {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "problem"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Business error; see notes.md for operation-specific codes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "problem": {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "problem"
+                  ]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Business error; see notes.md for operation-specific codes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "problem": {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "problem"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "summary": "Orders",
+        "description": "Stable ascending sequence cursor; includes internal drafts and cancelled drafts.\nnext_cursor is the final sequence if more rows remain, otherwise null.",
+        "operationId": "list_orders",
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Cursor"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 2,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CursorPage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Business error; see notes.md for operation-specific codes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "problem": {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "problem"
+                  ]
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Business error; see notes.md for operation-specific codes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "problem": {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "problem"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Business error; see notes.md for operation-specific codes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "problem": {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "problem"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Business error; see notes.md for operation-specific codes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "problem": {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "problem"
+                  ]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Business error; see notes.md for operation-specific codes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "problem": {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "problem"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/inventory/reservations": {
+      "post": {
+        "summary": "Reserve",
+        "description": "At most one reservation per order. Repeating a held reservation never debits stock again.",
+        "operationId": "reserve_stock",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrderRef"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Business error; see notes.md for operation-specific codes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "problem": {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "problem"
+                  ]
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Business error; see notes.md for operation-specific codes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "problem": {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "problem"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Business error; see notes.md for operation-specific codes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "problem": {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "problem"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Business error; see notes.md for operation-specific codes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "problem": {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "problem"
+                  ]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Business error; see notes.md for operation-specific codes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "problem": {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "problem"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/payments": {
+      "post": {
+        "summary": "Pay",
+        "description": "Simulated capture. Key AND order are unique; same order/input returns same charge.\nOn 503 after commit retry the same input/key. DECLINED has no charge. No real money.",
+        "operationId": "capture_payment",
+        "parameters": [
+          {
+            "name": "idempotency-key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 160,
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Payment"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Business error; see notes.md for operation-specific codes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "problem": {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "problem"
+                  ]
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Business error; see notes.md for operation-specific codes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "problem": {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "problem"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Business error; see notes.md for operation-specific codes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "problem": {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "problem"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Business error; see notes.md for operation-specific codes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "problem": {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "problem"
+                  ]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Business error; see notes.md for operation-specific codes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "problem": {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "problem"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/orders/{order_ref}/confirm": {
+      "post": {
+        "summary": "Confirm",
+        "description": "Confirm only after reservation and payment; retry is idempotent.",
+        "operationId": "confirm_order",
+        "parameters": [
+          {
+            "name": "order_ref",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Order Ref"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Order"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Business error; see notes.md for operation-specific codes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "problem": {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "problem"
+                  ]
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Business error; see notes.md for operation-specific codes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "problem": {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "problem"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Business error; see notes.md for operation-specific codes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "problem": {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "problem"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Business error; see notes.md for operation-specific codes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "problem": {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "problem"
+                  ]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Business error; see notes.md for operation-specific codes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "problem": {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "problem"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/orders/{order_ref}/void": {
+      "post": {
+        "summary": "Void",
+        "description": "Atomic within V2: release reservation and refund once. Also compensates failed drafts.",
+        "operationId": "void_order",
+        "parameters": [
+          {
+            "name": "order_ref",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Order Ref"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Order"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Business error; see notes.md for operation-specific codes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "problem": {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "problem"
+                  ]
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Business error; see notes.md for operation-specific codes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "problem": {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "problem"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Business error; see notes.md for operation-specific codes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "problem": {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "problem"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Business error; see notes.md for operation-specific codes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "problem": {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "problem"
+                  ]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Business error; see notes.md for operation-specific codes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "problem": {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "problem"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/orders/{order_ref}": {
+      "get": {
+        "summary": "Get Order",
+        "operationId": "get_order",
+        "parameters": [
+          {
+            "name": "order_ref",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Order Ref"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Order"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Business error; see notes.md for operation-specific codes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "problem": {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "problem"
+                  ]
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Business error; see notes.md for operation-specific codes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "problem": {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "problem"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Business error; see notes.md for operation-specific codes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "problem": {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "problem"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Business error; see notes.md for operation-specific codes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "problem": {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "problem"
+                  ]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Business error; see notes.md for operation-specific codes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "problem": {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "problem"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/stock/{product_code}": {
+      "get": {
+        "summary": "Inventory",
+        "operationId": "get_stock",
+        "parameters": [
+          {
+            "name": "product_code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Product Code"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Business error; see notes.md for operation-specific codes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "problem": {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "problem"
+                  ]
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Business error; see notes.md for operation-specific codes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "problem": {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "problem"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Business error; see notes.md for operation-specific codes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "problem": {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "problem"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Business error; see notes.md for operation-specific codes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "problem": {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "problem"
+                  ]
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Business error; see notes.md for operation-specific codes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "problem": {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "kind"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "problem"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CursorPage": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/Order"
+            },
+            "type": "array",
+            "title": "Data"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "data",
+          "next_cursor"
+        ],
+        "title": "CursorPage"
+      },
+      "Draft": {
+        "properties": {
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/Line"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Lines"
+          },
+          "total_minor": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Total Minor"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "lines",
+          "total_minor"
+        ],
+        "title": "Draft"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "Line": {
+        "properties": {
+          "product_code": {
+            "type": "string",
+            "title": "Product Code"
+          },
+          "units": {
+            "type": "integer",
+            "maximum": 10000.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Units"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "product_code",
+          "units"
+        ],
+        "title": "Line"
+      },
+      "Order": {
+        "properties": {
+          "lines": {
+            "items": {
+              "$ref": "#/components/schemas/Line"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Lines"
+          },
+          "total_minor": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Total Minor"
+          },
+          "order_ref": {
+            "type": "string",
+            "title": "Order Ref"
+          },
+          "phase": {
+            "type": "string",
+            "title": "Phase"
+          },
+          "sequence": {
+            "type": "integer",
+            "title": "Sequence"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "lines",
+          "total_minor",
+          "order_ref",
+          "phase",
+          "sequence"
+        ],
+        "title": "Order"
+      },
+      "OrderRef": {
+        "properties": {
+          "order_ref": {
+            "type": "string",
+            "title": "Order Ref"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "order_ref"
+        ],
+        "title": "OrderRef"
+      },
+      "Payment": {
+        "properties": {
+          "order_ref": {
+            "type": "string",
+            "title": "Order Ref"
+          },
+          "total_minor": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Total Minor"
+          },
+          "token": {
+            "type": "string",
+            "title": "Token"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "order_ref",
+          "total_minor",
+          "token"
+        ],
+        "title": "Payment"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  },
+  "x-parity-domain": "commerce",
+  "x-behavioral-notes": "notes.md"
+}

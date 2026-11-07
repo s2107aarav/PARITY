@@ -1,0 +1,2 @@
+2026-11-06T23:20:23.405601Z  WARN codex_rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-11-06T23:20:24.285296Z  WARN codex_core::session_startup_prewarm: startup websocket prewarm setup failed: You've hit your usage limit. Upgrade to Pro (https://chatgpt.com/explore/pro), visit https://chatgpt.com/codex/settings/usage to purchase more credits or try again at 5:19 AM.

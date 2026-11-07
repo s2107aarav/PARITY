@@ -1,0 +1,253 @@
+{
+  "scenario": "cancel_loss_restart",
+  "seed": 0,
+  "status": "pass",
+  "before": {
+    "v1": {
+      "inventory": {
+        "COFFEE": {
+          "price": 1250,
+          "sku": "COFFEE",
+          "stock": 30
+        },
+        "TEA": {
+          "price": 750,
+          "sku": "TEA",
+          "stock": 20
+        }
+      }
+    },
+    "v2": {
+      "inventory": {
+        "COFFEE": {
+          "price": 1250,
+          "sku": "COFFEE",
+          "stock": 30
+        },
+        "TEA": {
+          "price": 750,
+          "sku": "TEA",
+          "stock": 20
+        }
+      }
+    }
+  },
+  "effects": {
+    "orders": [
+      {
+        "status": "cancelled",
+        "amount": 1250,
+        "items": [
+          {
+            "quantity": 1,
+            "sku": "COFFEE"
+          }
+        ]
+      }
+    ],
+    "inventory": {
+      "TEA": 20,
+      "COFFEE": 30
+    },
+    "charges": 1250,
+    "refunds": 1250
+  },
+  "isolation": "macOS Seatbelt; explicit read roots; loopback upstream only",
+  "actions": [
+    {
+      "action": "checkout",
+      "input": {
+        "method": "POST",
+        "path": "/checkout",
+        "query": "",
+        "body": {
+          "items": [
+            {
+              "sku": "COFFEE",
+              "quantity": 1
+            }
+          ],
+          "amount": 1250,
+          "payment_token": "ok"
+        }
+      },
+      "expected_status": 201,
+      "actual_status": 201,
+      "expected": {
+        "id": 1,
+        "status": "paid",
+        "amount": 1250,
+        "items": [
+          {
+            "sku": "COFFEE",
+            "quantity": 1
+          }
+        ]
+      },
+      "actual": {
+        "id": 1,
+        "status": "paid",
+        "amount": 1250,
+        "items": [
+          {
+            "sku": "COFFEE",
+            "quantity": 1
+          }
+        ]
+      },
+      "v1_ms": 5.53,
+      "adapter_ms": 28.085
+    },
+    {
+      "action": "retry cancel",
+      "input": {
+        "method": "POST",
+        "path": "/orders/1/cancel",
+        "query": "",
+        "body": null
+      },
+      "expected_status": 200,
+      "actual_status": 200,
+      "expected": {
+        "id": 1,
+        "status": "cancelled",
+        "amount": 1250,
+        "items": [
+          {
+            "sku": "COFFEE",
+            "quantity": 1
+          }
+        ]
+      },
+      "actual": {
+        "id": 1,
+        "status": "cancelled",
+        "amount": 1250,
+        "items": [
+          {
+            "sku": "COFFEE",
+            "quantity": 1
+          }
+        ]
+      },
+      "v1_ms": 2.661,
+      "adapter_ms": 7.819
+    }
+  ],
+  "after": {
+    "v1": {
+      "inventory": {
+        "TEA": {
+          "price": 750,
+          "sku": "TEA",
+          "stock": 20
+        },
+        "COFFEE": {
+          "price": 1250,
+          "sku": "COFFEE",
+          "stock": 30
+        }
+      },
+      "counters": {
+        "orders": 1
+      },
+      "payments": {
+        "charge:1": {
+          "amount": 1250,
+          "kind": "charge",
+          "order_id": 1
+        },
+        "refund:1": {
+          "amount": 1250,
+          "kind": "refund",
+          "order_id": 1
+        }
+      },
+      "requests": {
+        "cancel-loss": {
+          "fingerprint": "8e24a2d30a1ff7444ba8e104aeec830df3ef2f41efc38ff64d8ce31e23903fc3",
+          "id": 1
+        }
+      },
+      "orders": {
+        "1": {
+          "amount": 1250,
+          "id": 1,
+          "items": [
+            {
+              "quantity": 1,
+              "sku": "COFFEE"
+            }
+          ],
+          "status": "cancelled"
+        }
+      }
+    },
+    "v2": {
+      "inventory": {
+        "TEA": {
+          "price": 750,
+          "sku": "TEA",
+          "stock": 20
+        },
+        "COFFEE": {
+          "price": 1250,
+          "sku": "COFFEE",
+          "stock": 30
+        }
+      },
+      "counters": {
+        "orders": 1
+      },
+      "requests": {
+        "draft:4d3a1654804d8654bf090d4b93ee4ef83d32a9dfed6d46cc0a6026ad9324f266": {
+          "fingerprint": "797911b8b4eaebcdc2a8a27d2da9820c6b418336adbe211571fa955a5a019357",
+          "ref": "4fce4dcd-484d-4a98-8a00-75237205fd5e"
+        }
+      },
+      "payments": {
+        "charge:4fce4dcd-484d-4a98-8a00-75237205fd5e": {
+          "amount": 1250,
+          "fingerprint": "a5b3d2f6e5170ecb4c1b5a3360ffa8d82ccfee11006ea1f0da74aaa83bb823c8",
+          "kind": "charge",
+          "order_ref": "4fce4dcd-484d-4a98-8a00-75237205fd5e",
+          "payment_ref": "e152301c-d29c-4ec4-aee0-f48c8203c4d9"
+        },
+        "refund:4fce4dcd-484d-4a98-8a00-75237205fd5e": {
+          "amount": 1250,
+          "kind": "refund",
+          "order_ref": "4fce4dcd-484d-4a98-8a00-75237205fd5e"
+        }
+      },
+      "payment_keys": {
+        "payment:4d3a1654804d8654bf090d4b93ee4ef83d32a9dfed6d46cc0a6026ad9324f266": {
+          "fingerprint": "a5b3d2f6e5170ecb4c1b5a3360ffa8d82ccfee11006ea1f0da74aaa83bb823c8"
+        }
+      },
+      "reservations": {
+        "4fce4dcd-484d-4a98-8a00-75237205fd5e": {
+          "order_ref": "4fce4dcd-484d-4a98-8a00-75237205fd5e",
+          "quantities": {
+            "COFFEE": 1
+          },
+          "state": "released"
+        }
+      },
+      "orders": {
+        "4fce4dcd-484d-4a98-8a00-75237205fd5e": {
+          "lines": [
+            {
+              "product_code": "COFFEE",
+              "units": 1
+            }
+          ],
+          "order_ref": "4fce4dcd-484d-4a98-8a00-75237205fd5e",
+          "phase": "cancelled",
+          "sequence": 1,
+          "total_minor": 1250
+        }
+      }
+    }
+  },
+  "elapsed_ms": 2070.022
+}

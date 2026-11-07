@@ -1,0 +1,14 @@
+{
+  "provenance": "real-authenticated-model-run",
+  "strategy": "single-shot",
+  "status": "generation_rejected",
+  "model_calls": 1,
+  "source_attempts": 1,
+  "elapsed_s": 106.413,
+  "domain": "commerce",
+  "adapter_sha256": null,
+  "validation_failure": "ValueError: workflow names an unknown target operation",
+  "validation_access": "none during generation; candidate rejected before execution",
+  "cost_usd": null,
+  "explanation": "Implements all legacy endpoints with durable checkout checkpoints, deterministic upstream idempotency, compensation, cancellation, validation, and stable IDs. Ambiguous failures return PENDING without compensating payments. Listings include only published orders and retain cancelled orders. Recovery requires retries; external writers and unbounded datasets are unsupported. No tools or tests were used."
+}

@@ -1,0 +1,190 @@
+{
+  "schema_version": 1,
+  "old": {
+    "title": "Tickets V1",
+    "version": "1.0.0"
+  },
+  "new": {
+    "title": "Issues V2",
+    "version": "2.0.0"
+  },
+  "changes": [
+    {
+      "kind": "removed_operation",
+      "operation": "POST /tickets",
+      "evidence": [
+        {
+          "document": "old",
+          "pointer": "#/paths/~1tickets/post"
+        }
+      ],
+      "certainty": "static",
+      "semantic_mapping": "unknown; inspect behavior"
+    },
+    {
+      "kind": "removed_operation",
+      "operation": "GET /tickets/{ticket_id}",
+      "evidence": [
+        {
+          "document": "old",
+          "pointer": "#/paths/~1tickets~1{ticket_id}/get"
+        }
+      ],
+      "certainty": "static",
+      "semantic_mapping": "unknown; inspect behavior"
+    }
+  ],
+  "added_operations": [
+    "GET /issues/{issue_ref}",
+    "POST /issues",
+    "POST /issues/{issue_ref}/comments",
+    "POST /issues/{issue_ref}/publish"
+  ],
+  "schema_fields": {
+    "old": {
+      "HTTPValidationError": {
+        "detail": {
+          "type": "array",
+          "required": false
+        },
+        "detail[].loc": {
+          "type": "array",
+          "required": true
+        },
+        "detail[].msg": {
+          "type": "string",
+          "required": true
+        },
+        "detail[].type": {
+          "type": "string",
+          "required": true
+        },
+        "detail[].input": {
+          "type": "composite",
+          "required": false
+        },
+        "detail[].ctx": {
+          "type": "object",
+          "required": false
+        }
+      },
+      "Ticket": {
+        "title": {
+          "type": "string",
+          "required": true
+        },
+        "body": {
+          "type": "string",
+          "required": true
+        }
+      },
+      "TicketResult": {
+        "title": {
+          "type": "string",
+          "required": true
+        },
+        "body": {
+          "type": "string",
+          "required": true
+        },
+        "id": {
+          "type": "integer",
+          "required": true
+        },
+        "status": {
+          "type": "string",
+          "required": true
+        }
+      },
+      "ValidationError": {
+        "loc": {
+          "type": "array",
+          "required": true
+        },
+        "msg": {
+          "type": "string",
+          "required": true
+        },
+        "type": {
+          "type": "string",
+          "required": true
+        },
+        "input": {
+          "type": "composite",
+          "required": false
+        },
+        "ctx": {
+          "type": "object",
+          "required": false
+        }
+      }
+    },
+    "new": {
+      "Comment": {
+        "text": {
+          "type": "string",
+          "required": true
+        }
+      },
+      "HTTPValidationError": {
+        "detail": {
+          "type": "array",
+          "required": false
+        },
+        "detail[].loc": {
+          "type": "array",
+          "required": true
+        },
+        "detail[].msg": {
+          "type": "string",
+          "required": true
+        },
+        "detail[].type": {
+          "type": "string",
+          "required": true
+        },
+        "detail[].input": {
+          "type": "composite",
+          "required": false
+        },
+        "detail[].ctx": {
+          "type": "object",
+          "required": false
+        }
+      },
+      "Issue": {
+        "summary": {
+          "type": "string",
+          "required": true
+        }
+      },
+      "ValidationError": {
+        "loc": {
+          "type": "array",
+          "required": true
+        },
+        "msg": {
+          "type": "string",
+          "required": true
+        },
+        "type": {
+          "type": "string",
+          "required": true
+        },
+        "input": {
+          "type": "composite",
+          "required": false
+        },
+        "ctx": {
+          "type": "object",
+          "required": false
+        }
+      }
+    }
+  },
+  "uncertainties": [
+    "Matching operationId is a candidate mapping, not proof of behavior.",
+    "Atomicity, retry recovery, money and stock effects require docs and bounded probes.",
+    "Removed operations plus added primitives may require a one-to-many workflow; semantic evidence required."
+  ]
+}

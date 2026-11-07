@@ -1,0 +1,18 @@
+{
+  "provenance": "real-authenticated-model-run",
+  "domain": "commerce",
+  "status": "budget_exhausted",
+  "source_attempts": 1,
+  "model_calls": 14,
+  "elapsed_s": 183.72,
+  "cost_usd": null,
+  "adapter_sha256": "6156d576adf406f650976d4b496623fbaefb98b9f8921a79e6477bf2322e7aba",
+  "plan_sha256": "c4872197fc03a8ad24615cfea17e905feeaf3b800b01e3f2bd9dfeb9a1bb9992",
+  "inputs": {
+    "new.json": "d48aa6ce4928bbdb868685c3fc3abce6b7661374344a0f5f222a8b605bbeefd6",
+    "old.json": "5146fd96cb67b57188af518dbce817d6afc77a363636c8cba09646b465f96196",
+    "delta.json": "c00c4d682a93f3cfe3422be2252332b6f603e183f26a2a0bbf2d71856e61d951",
+    "notes.md": "6d6045607fa27e60b64dc082810abac8b3f879ca4a986984af3adc55b2615681"
+  },
+  "note": "Public trial success is not independent acceptance. No reference/checker source supplied."
+}

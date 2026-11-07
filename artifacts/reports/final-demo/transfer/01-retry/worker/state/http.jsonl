@@ -1,0 +1,3 @@
+{"body": {"summary": "Login broken"}, "method": "POST", "ms": 6.955, "path": "/issues", "response": {"comments": [], "ref": "9038355f-fcaa-4e7d-af93-5d49e4e2771a", "state": "draft", "summary": "Login broken"}, "status": 201}
+{"body": {"text": "Cannot sign in"}, "method": "POST", "ms": 2.846, "path": "/issues/9038355f-fcaa-4e7d-af93-5d49e4e2771a/comments", "response": {"comments": ["Cannot sign in"], "ref": "9038355f-fcaa-4e7d-af93-5d49e4e2771a", "state": "draft", "summary": "Login broken"}, "status": 200}
+{"body": null, "method": "POST", "ms": 2.835, "path": "/issues/9038355f-fcaa-4e7d-af93-5d49e4e2771a/publish", "response": {"comments": ["Cannot sign in"], "ref": "9038355f-fcaa-4e7d-af93-5d49e4e2771a", "state": "open", "summary": "Login broken"}, "status": 200}

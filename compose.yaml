@@ -1,0 +1,39 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: parity
+      POSTGRES_PASSWORD: local-demo-only
+      POSTGRES_DB: parity
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./scripts/init-databases.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U parity"]
+      interval: 2s
+      timeout: 2s
+      retries: 20
+  v1:
+    build: .
+    command: ["serve", "--suite", "commerce", "--version", "old", "--db", "postgresql+psycopg://parity:local-demo-only@postgres/parity_v1", "--host", "0.0.0.0", "--port", "8001"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports: ["127.0.0.1:8001:8001"]
+    read_only: true
+    tmpfs: ["/tmp"]
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+  v2:
+    build: .
+    command: ["serve", "--suite", "commerce", "--version", "new", "--db", "postgresql+psycopg://parity:local-demo-only@postgres/parity_v2", "--host", "0.0.0.0", "--port", "8002"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports: ["127.0.0.1:8002:8002"]
+    read_only: true
+    tmpfs: ["/tmp"]
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+volumes:
+  pgdata:

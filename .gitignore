@@ -1,0 +1,23 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.hypothesis/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+build/
+dist/
+.env
+.DS_Store
+.parity/
+*.db
+*.db-*
+# Runtime bundles are copied from pinned engine/source files; keep trials' actual JSON traces.
+**/worker/parity/
+**/worker/adapter.py
+**/worker/config.json
+**/worker/sandbox.sb
+**/worker/worker.log
+**/worker/state/adapter.lock
+*.zip

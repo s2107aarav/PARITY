@@ -1,0 +1,52 @@
+{
+  "scenario": "validation",
+  "seed": 0,
+  "status": "pass",
+  "isolation": "macOS Seatbelt; explicit read roots; loopback upstream only",
+  "actions": [
+    {
+      "expected_status": 422,
+      "actual_status": 422,
+      "expected": {
+        "error": "INVALID"
+      },
+      "actual": {
+        "error": "INVALID"
+      }
+    },
+    {
+      "expected_status": 422,
+      "actual_status": 422,
+      "expected": {
+        "error": "INVALID"
+      },
+      "actual": {
+        "error": "INVALID"
+      }
+    },
+    {
+      "expected_status": 422,
+      "actual_status": 422,
+      "expected": {
+        "error": "INVALID"
+      },
+      "actual": {
+        "error": "INVALID"
+      }
+    },
+    {
+      "expected_status": 404,
+      "actual_status": 404,
+      "expected": {
+        "error": "NOT_FOUND"
+      },
+      "actual": {
+        "error": "NOT_FOUND"
+      }
+    }
+  ],
+  "after": {
+    "v1": {},
+    "v2": {}
+  }
+}

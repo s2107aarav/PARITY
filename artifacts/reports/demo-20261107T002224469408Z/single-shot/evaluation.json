@@ -1,0 +1,10 @@
+{
+  "suite": "commerce",
+  "passed": 0,
+  "total": 0,
+  "scenarios": [],
+  "generation_failure": "ValueError: workflow names an unknown target operation",
+  "not_run": 15,
+  "artifact_sha256": null,
+  "checker_sha256": null
+}

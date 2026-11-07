@@ -1,0 +1,4 @@
+{"body": null, "method": "GET", "ms": 12.975, "path": "/stock/COFFEE", "response": {"product_code": "COFFEE", "units_available": 30}, "status": 200}
+{"body": null, "method": "GET", "ms": 4.023, "path": "/stock/MISSING", "response": {"problem": {"kind": "PRODUCT_MISSING"}}, "status": 404}
+{"body": null, "method": "GET", "ms": 3.753, "path": "/stock/COFFEE", "response": {"product_code": "COFFEE", "units_available": 30}, "status": 200}
+{"body": {"lines": [{"product_code": "COFFEE", "units": 1}], "total_minor": 1}, "method": "POST", "ms": 6.951, "path": "/orders", "response": {"problem": {"kind": "BAD_TOTAL"}}, "status": 422}

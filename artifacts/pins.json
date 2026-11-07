@@ -1,0 +1,22 @@
+{
+  "commerce": "commerce-live-002",
+  "transfer": "transfer-live-001",
+  "single_shot": "commerce-single-shot-001",
+  "seed": 0,
+  "files": {
+    "apps/legacy_client.py": "e17922c1485237650f4665f24a4a6ec4920cd161c9b52114e030adaf9a851f5d",
+    "parity/replay.py": "25b9b11b30a403c4b86c75feb086e874267c9bf7d463f15641c43dc8d10f498f",
+    "parity/transfer_replay.py": "2bdf3ef471912ba1a0e360441c78c56c22335f49ff7a38c4437178d09212acbc",
+    "artifacts/generated/commerce-live-001/adapter.py": "6156d576adf406f650976d4b496623fbaefb98b9f8921a79e6477bf2322e7aba",
+    "artifacts/generated/commerce-live-002/adapter.py": "18fd24438d8cda806a9c90762ead58510540c4b3401b616b11a4e208624132ee",
+    "artifacts/generated/commerce-live-002/plan.json": "b70adf4ad8d884f3ac4456ef10a9aa7af72c3044141824337e7b2218bee9326f",
+    "artifacts/generated/transfer-live-001/adapter.py": "3b0a0df089be488c3ea31042ec65acf8007a6ec8122f639e763c6dd0f759e659",
+    "artifacts/generated/transfer-live-001/plan.json": "bd8189e3a3430296385b52378ec7594a08c70010d670aca3efd79ba1fe90ea5f",
+    "parity/runtime.py": "76bb0c4feda1e9ce095ff6e51cf45eb09fc9acc7d44498dd983ea13b7196773b",
+    "parity/storage.py": "84bd0038aae41abb801d98b7853c5925948ae535e47ee86f6150d3453f5a11e4",
+    "parity/worker.py": "4149465d3ff3044449257c3eb35bfefc131311b52ad98228abb17fa5df39c71a",
+    "parity/agent.py": "32fd3f1e032420bd2ce54874cf962df5beea68157ade0263c7836bb343da6ca1",
+    "parity/plans.py": "05aee10bcf9c88546f79c5b1585603e11d1f652c598b4740be2bf6a124408ff4",
+    "parity/contracts.py": "0ee6909825ab9738127058cf7022ee35d0168f291e1e489beacbe53230464451"
+  }
+}

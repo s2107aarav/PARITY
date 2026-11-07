@@ -1,0 +1,197 @@
+{
+  "suite": "commerce",
+  "artifact_sha256": "c5d1c25c191920fa353d243f0da7a4083013bc2a1873802cdb50446c36fdb816",
+  "checker_sha256": "ced160a5acf77588dc7e3a2f432b99b50d9efcdeb775653d0bb02239a38f955f",
+  "legacy_client_sha256": "e17922c1485237650f4665f24a4a6ec4920cd161c9b52114e030adaf9a851f5d",
+  "seed": 0,
+  "scenarios": [
+    {
+      "scenario": "errors",
+      "seed": 0,
+      "status": "fail",
+      "before": {
+        "v1": {
+          "inventory": {
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 30
+            },
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            }
+          }
+        },
+        "v2": {
+          "inventory": {
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 30
+            },
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            }
+          }
+        }
+      },
+      "mismatch": "AssertionError: checkout: HTTP status mismatch",
+      "actions": [
+        {
+          "action": "checkout",
+          "input": {
+            "method": "POST",
+            "path": "/checkout",
+            "query": "",
+            "body": {
+              "items": [
+                {
+                  "sku": "MISSING",
+                  "quantity": 1
+                }
+              ],
+              "amount": 1250,
+              "payment_token": "ok"
+            }
+          },
+          "expected_status": 404,
+          "actual_status": 404,
+          "expected": {
+            "error": "UNKNOWN_SKU"
+          },
+          "actual": {
+            "error": "UNKNOWN_SKU"
+          },
+          "v1_ms": 3.427,
+          "adapter_ms": 7.931
+        },
+        {
+          "action": "checkout",
+          "input": {
+            "method": "POST",
+            "path": "/checkout",
+            "query": "",
+            "body": {
+              "items": [
+                {
+                  "sku": "COFFEE",
+                  "quantity": 1
+                }
+              ],
+              "amount": 1,
+              "payment_token": "ok"
+            }
+          },
+          "expected_status": 422,
+          "actual_status": 422,
+          "expected": {
+            "error": "AMOUNT_MISMATCH"
+          },
+          "actual": {
+            "error": "AMOUNT_MISMATCH"
+          },
+          "v1_ms": 1.728,
+          "adapter_ms": 6.053
+        },
+        {
+          "action": "checkout",
+          "input": {
+            "method": "POST",
+            "path": "/checkout",
+            "query": "",
+            "body": {
+              "items": [
+                {
+                  "sku": "COFFEE",
+                  "quantity": 1
+                }
+              ],
+              "amount": 1250,
+              "payment_token": "declined"
+            }
+          },
+          "expected_status": 402,
+          "actual_status": 500,
+          "expected": {
+            "error": "PAYMENT_DECLINED"
+          },
+          "actual": {
+            "error": "GENERIC_ERROR"
+          },
+          "v1_ms": 1.39,
+          "adapter_ms": 20.649
+        }
+      ],
+      "after": {
+        "v1": {
+          "inventory": {
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 30
+            },
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            }
+          }
+        },
+        "v2": {
+          "inventory": {
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            },
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 30
+            }
+          },
+          "counters": {
+            "orders": 1
+          },
+          "requests": {
+            "draft:1:declined": {
+              "fingerprint": "797911b8b4eaebcdc2a8a27d2da9820c6b418336adbe211571fa955a5a019357",
+              "ref": "5ad4b261-5a63-4626-ac1f-bd3862cfdb44"
+            }
+          },
+          "reservations": {
+            "5ad4b261-5a63-4626-ac1f-bd3862cfdb44": {
+              "order_ref": "5ad4b261-5a63-4626-ac1f-bd3862cfdb44",
+              "quantities": {
+                "COFFEE": 1
+              },
+              "state": "released"
+            }
+          },
+          "orders": {
+            "5ad4b261-5a63-4626-ac1f-bd3862cfdb44": {
+              "lines": [
+                {
+                  "product_code": "COFFEE",
+                  "units": 1
+                }
+              ],
+              "order_ref": "5ad4b261-5a63-4626-ac1f-bd3862cfdb44",
+              "phase": "cancelled",
+              "sequence": 1,
+              "total_minor": 1250
+            }
+          }
+        }
+      },
+      "elapsed_ms": 1153.833
+    }
+  ],
+  "passed": 0,
+  "total": 1,
+  "replay": "parity validate --adapter /Users/aaravsingh/Library/Mobile Documents/com~apple~CloudDocs/PARITY/artifacts/reports/demo-20261107T002224469408Z/calibration/wrong_error --suite commerce"
+}

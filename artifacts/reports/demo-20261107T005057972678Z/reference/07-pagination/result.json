@@ -1,0 +1,903 @@
+{
+  "scenario": "pagination",
+  "seed": 0,
+  "status": "pass",
+  "before": {
+    "v1": {
+      "inventory": {
+        "COFFEE": {
+          "price": 1250,
+          "sku": "COFFEE",
+          "stock": 30
+        },
+        "TEA": {
+          "price": 750,
+          "sku": "TEA",
+          "stock": 20
+        }
+      }
+    },
+    "v2": {
+      "inventory": {
+        "COFFEE": {
+          "price": 1250,
+          "sku": "COFFEE",
+          "stock": 30
+        },
+        "TEA": {
+          "price": 750,
+          "sku": "TEA",
+          "stock": 20
+        }
+      }
+    }
+  },
+  "effects": {
+    "orders": [
+      {
+        "status": "paid",
+        "amount": 750,
+        "items": [
+          {
+            "quantity": 1,
+            "sku": "TEA"
+          }
+        ]
+      },
+      {
+        "status": "paid",
+        "amount": 750,
+        "items": [
+          {
+            "quantity": 1,
+            "sku": "TEA"
+          }
+        ]
+      },
+      {
+        "status": "paid",
+        "amount": 750,
+        "items": [
+          {
+            "quantity": 1,
+            "sku": "TEA"
+          }
+        ]
+      },
+      {
+        "status": "paid",
+        "amount": 750,
+        "items": [
+          {
+            "quantity": 1,
+            "sku": "TEA"
+          }
+        ]
+      },
+      {
+        "status": "paid",
+        "amount": 750,
+        "items": [
+          {
+            "quantity": 1,
+            "sku": "TEA"
+          }
+        ]
+      }
+    ],
+    "inventory": {
+      "COFFEE": 30,
+      "TEA": 15
+    },
+    "charges": 3750,
+    "refunds": 0
+  },
+  "isolation": "macOS Seatbelt; explicit read roots; loopback upstream only",
+  "actions": [
+    {
+      "action": "checkout",
+      "input": {
+        "method": "POST",
+        "path": "/checkout",
+        "query": "",
+        "body": {
+          "items": [
+            {
+              "sku": "COFFEE",
+              "quantity": 1
+            }
+          ],
+          "amount": 1250,
+          "payment_token": "declined"
+        }
+      },
+      "expected_status": 402,
+      "actual_status": 402,
+      "expected": {
+        "error": "PAYMENT_DECLINED"
+      },
+      "actual": {
+        "error": "PAYMENT_DECLINED"
+      },
+      "v1_ms": 3.882,
+      "adapter_ms": 29.145
+    },
+    {
+      "action": "checkout",
+      "input": {
+        "method": "POST",
+        "path": "/checkout",
+        "query": "",
+        "body": {
+          "items": [
+            {
+              "sku": "TEA",
+              "quantity": 1
+            }
+          ],
+          "amount": 750,
+          "payment_token": "ok"
+        }
+      },
+      "expected_status": 201,
+      "actual_status": 201,
+      "expected": {
+        "id": 1,
+        "status": "paid",
+        "amount": 750,
+        "items": [
+          {
+            "sku": "TEA",
+            "quantity": 1
+          }
+        ]
+      },
+      "actual": {
+        "id": 1,
+        "status": "paid",
+        "amount": 750,
+        "items": [
+          {
+            "sku": "TEA",
+            "quantity": 1
+          }
+        ]
+      },
+      "v1_ms": 3.43,
+      "adapter_ms": 21.932
+    },
+    {
+      "action": "checkout",
+      "input": {
+        "method": "POST",
+        "path": "/checkout",
+        "query": "",
+        "body": {
+          "items": [
+            {
+              "sku": "TEA",
+              "quantity": 1
+            }
+          ],
+          "amount": 750,
+          "payment_token": "ok"
+        }
+      },
+      "expected_status": 201,
+      "actual_status": 201,
+      "expected": {
+        "id": 2,
+        "status": "paid",
+        "amount": 750,
+        "items": [
+          {
+            "sku": "TEA",
+            "quantity": 1
+          }
+        ]
+      },
+      "actual": {
+        "id": 2,
+        "status": "paid",
+        "amount": 750,
+        "items": [
+          {
+            "sku": "TEA",
+            "quantity": 1
+          }
+        ]
+      },
+      "v1_ms": 3.826,
+      "adapter_ms": 26.541
+    },
+    {
+      "action": "checkout",
+      "input": {
+        "method": "POST",
+        "path": "/checkout",
+        "query": "",
+        "body": {
+          "items": [
+            {
+              "sku": "TEA",
+              "quantity": 1
+            }
+          ],
+          "amount": 750,
+          "payment_token": "ok"
+        }
+      },
+      "expected_status": 201,
+      "actual_status": 201,
+      "expected": {
+        "id": 3,
+        "status": "paid",
+        "amount": 750,
+        "items": [
+          {
+            "sku": "TEA",
+            "quantity": 1
+          }
+        ]
+      },
+      "actual": {
+        "id": 3,
+        "status": "paid",
+        "amount": 750,
+        "items": [
+          {
+            "sku": "TEA",
+            "quantity": 1
+          }
+        ]
+      },
+      "v1_ms": 5.719,
+      "adapter_ms": 23.733
+    },
+    {
+      "action": "checkout",
+      "input": {
+        "method": "POST",
+        "path": "/checkout",
+        "query": "",
+        "body": {
+          "items": [
+            {
+              "sku": "TEA",
+              "quantity": 1
+            }
+          ],
+          "amount": 750,
+          "payment_token": "ok"
+        }
+      },
+      "expected_status": 201,
+      "actual_status": 201,
+      "expected": {
+        "id": 4,
+        "status": "paid",
+        "amount": 750,
+        "items": [
+          {
+            "sku": "TEA",
+            "quantity": 1
+          }
+        ]
+      },
+      "actual": {
+        "id": 4,
+        "status": "paid",
+        "amount": 750,
+        "items": [
+          {
+            "sku": "TEA",
+            "quantity": 1
+          }
+        ]
+      },
+      "v1_ms": 3.664,
+      "adapter_ms": 19.801
+    },
+    {
+      "action": "checkout",
+      "input": {
+        "method": "POST",
+        "path": "/checkout",
+        "query": "",
+        "body": {
+          "items": [
+            {
+              "sku": "TEA",
+              "quantity": 1
+            }
+          ],
+          "amount": 750,
+          "payment_token": "ok"
+        }
+      },
+      "expected_status": 201,
+      "actual_status": 201,
+      "expected": {
+        "id": 5,
+        "status": "paid",
+        "amount": 750,
+        "items": [
+          {
+            "sku": "TEA",
+            "quantity": 1
+          }
+        ]
+      },
+      "actual": {
+        "id": 5,
+        "status": "paid",
+        "amount": 750,
+        "items": [
+          {
+            "sku": "TEA",
+            "quantity": 1
+          }
+        ]
+      },
+      "v1_ms": 3.225,
+      "adapter_ms": 20.417
+    },
+    {
+      "action": "page 1",
+      "input": {
+        "method": "GET",
+        "path": "/orders",
+        "query": "page=1&page_size=2",
+        "body": null
+      },
+      "expected_status": 200,
+      "actual_status": 200,
+      "expected": {
+        "orders": [
+          {
+            "id": 1,
+            "status": "paid",
+            "amount": 750,
+            "items": [
+              {
+                "sku": "TEA",
+                "quantity": 1
+              }
+            ]
+          },
+          {
+            "id": 2,
+            "status": "paid",
+            "amount": 750,
+            "items": [
+              {
+                "sku": "TEA",
+                "quantity": 1
+              }
+            ]
+          }
+        ],
+        "total": 5,
+        "page": 1,
+        "page_size": 2
+      },
+      "actual": {
+        "orders": [
+          {
+            "id": 1,
+            "status": "paid",
+            "amount": 750,
+            "items": [
+              {
+                "sku": "TEA",
+                "quantity": 1
+              }
+            ]
+          },
+          {
+            "id": 2,
+            "status": "paid",
+            "amount": 750,
+            "items": [
+              {
+                "sku": "TEA",
+                "quantity": 1
+              }
+            ]
+          }
+        ],
+        "total": 5,
+        "page": 1,
+        "page_size": 2
+      },
+      "v1_ms": 2.292,
+      "adapter_ms": 11.156
+    },
+    {
+      "action": "page 2",
+      "input": {
+        "method": "GET",
+        "path": "/orders",
+        "query": "page=2&page_size=2",
+        "body": null
+      },
+      "expected_status": 200,
+      "actual_status": 200,
+      "expected": {
+        "orders": [
+          {
+            "id": 3,
+            "status": "paid",
+            "amount": 750,
+            "items": [
+              {
+                "sku": "TEA",
+                "quantity": 1
+              }
+            ]
+          },
+          {
+            "id": 4,
+            "status": "paid",
+            "amount": 750,
+            "items": [
+              {
+                "sku": "TEA",
+                "quantity": 1
+              }
+            ]
+          }
+        ],
+        "total": 5,
+        "page": 2,
+        "page_size": 2
+      },
+      "actual": {
+        "orders": [
+          {
+            "id": 3,
+            "status": "paid",
+            "amount": 750,
+            "items": [
+              {
+                "sku": "TEA",
+                "quantity": 1
+              }
+            ]
+          },
+          {
+            "id": 4,
+            "status": "paid",
+            "amount": 750,
+            "items": [
+              {
+                "sku": "TEA",
+                "quantity": 1
+              }
+            ]
+          }
+        ],
+        "total": 5,
+        "page": 2,
+        "page_size": 2
+      },
+      "v1_ms": 1.45,
+      "adapter_ms": 10.39
+    },
+    {
+      "action": "page 3",
+      "input": {
+        "method": "GET",
+        "path": "/orders",
+        "query": "page=3&page_size=2",
+        "body": null
+      },
+      "expected_status": 200,
+      "actual_status": 200,
+      "expected": {
+        "orders": [
+          {
+            "id": 5,
+            "status": "paid",
+            "amount": 750,
+            "items": [
+              {
+                "sku": "TEA",
+                "quantity": 1
+              }
+            ]
+          }
+        ],
+        "total": 5,
+        "page": 3,
+        "page_size": 2
+      },
+      "actual": {
+        "orders": [
+          {
+            "id": 5,
+            "status": "paid",
+            "amount": 750,
+            "items": [
+              {
+                "sku": "TEA",
+                "quantity": 1
+              }
+            ]
+          }
+        ],
+        "total": 5,
+        "page": 3,
+        "page_size": 2
+      },
+      "v1_ms": 1.411,
+      "adapter_ms": 10.345
+    },
+    {
+      "action": "page 4",
+      "input": {
+        "method": "GET",
+        "path": "/orders",
+        "query": "page=4&page_size=2",
+        "body": null
+      },
+      "expected_status": 200,
+      "actual_status": 200,
+      "expected": {
+        "orders": [],
+        "total": 5,
+        "page": 4,
+        "page_size": 2
+      },
+      "actual": {
+        "orders": [],
+        "total": 5,
+        "page": 4,
+        "page_size": 2
+      },
+      "v1_ms": 1.415,
+      "adapter_ms": 10.336
+    }
+  ],
+  "after": {
+    "v1": {
+      "inventory": {
+        "COFFEE": {
+          "price": 1250,
+          "sku": "COFFEE",
+          "stock": 30
+        },
+        "TEA": {
+          "price": 750,
+          "sku": "TEA",
+          "stock": 15
+        }
+      },
+      "orders": {
+        "1": {
+          "amount": 750,
+          "id": 1,
+          "items": [
+            {
+              "quantity": 1,
+              "sku": "TEA"
+            }
+          ],
+          "status": "paid"
+        },
+        "2": {
+          "amount": 750,
+          "id": 2,
+          "items": [
+            {
+              "quantity": 1,
+              "sku": "TEA"
+            }
+          ],
+          "status": "paid"
+        },
+        "3": {
+          "amount": 750,
+          "id": 3,
+          "items": [
+            {
+              "quantity": 1,
+              "sku": "TEA"
+            }
+          ],
+          "status": "paid"
+        },
+        "4": {
+          "amount": 750,
+          "id": 4,
+          "items": [
+            {
+              "quantity": 1,
+              "sku": "TEA"
+            }
+          ],
+          "status": "paid"
+        },
+        "5": {
+          "amount": 750,
+          "id": 5,
+          "items": [
+            {
+              "quantity": 1,
+              "sku": "TEA"
+            }
+          ],
+          "status": "paid"
+        }
+      },
+      "payments": {
+        "charge:1": {
+          "amount": 750,
+          "kind": "charge",
+          "order_id": 1
+        },
+        "charge:2": {
+          "amount": 750,
+          "kind": "charge",
+          "order_id": 2
+        },
+        "charge:3": {
+          "amount": 750,
+          "kind": "charge",
+          "order_id": 3
+        },
+        "charge:4": {
+          "amount": 750,
+          "kind": "charge",
+          "order_id": 4
+        },
+        "charge:5": {
+          "amount": 750,
+          "kind": "charge",
+          "order_id": 5
+        }
+      },
+      "requests": {
+        "page-0": {
+          "fingerprint": "7a29e998c00f4036e59b41f2bb3c3862552f045399f78df9c6527820a3cb4b3b",
+          "id": 1
+        },
+        "page-1": {
+          "fingerprint": "7a29e998c00f4036e59b41f2bb3c3862552f045399f78df9c6527820a3cb4b3b",
+          "id": 2
+        },
+        "page-2": {
+          "fingerprint": "7a29e998c00f4036e59b41f2bb3c3862552f045399f78df9c6527820a3cb4b3b",
+          "id": 3
+        },
+        "page-3": {
+          "fingerprint": "7a29e998c00f4036e59b41f2bb3c3862552f045399f78df9c6527820a3cb4b3b",
+          "id": 4
+        },
+        "page-4": {
+          "fingerprint": "7a29e998c00f4036e59b41f2bb3c3862552f045399f78df9c6527820a3cb4b3b",
+          "id": 5
+        }
+      },
+      "counters": {
+        "orders": 5
+      }
+    },
+    "v2": {
+      "requests": {
+        "draft:1:failed": {
+          "fingerprint": "797911b8b4eaebcdc2a8a27d2da9820c6b418336adbe211571fa955a5a019357",
+          "ref": "8a863fc2-a904-4b2e-820e-1fe4ea194945"
+        },
+        "draft:1:page-0": {
+          "fingerprint": "038bab5d7c0d28ba0034965b458fbcc8296856db44afb231237da6856a97b33a",
+          "ref": "eb9526d4-0f43-42b8-8004-7e56123e47b2"
+        },
+        "draft:1:page-1": {
+          "fingerprint": "038bab5d7c0d28ba0034965b458fbcc8296856db44afb231237da6856a97b33a",
+          "ref": "2301cc12-4761-46c4-a739-3aa24af1f223"
+        },
+        "draft:1:page-2": {
+          "fingerprint": "038bab5d7c0d28ba0034965b458fbcc8296856db44afb231237da6856a97b33a",
+          "ref": "fc1be7e7-2913-41d1-8bef-3a751b33374e"
+        },
+        "draft:1:page-3": {
+          "fingerprint": "038bab5d7c0d28ba0034965b458fbcc8296856db44afb231237da6856a97b33a",
+          "ref": "e353e9f6-3af8-4cc2-bd31-2dda5c83a6d5"
+        },
+        "draft:1:page-4": {
+          "fingerprint": "038bab5d7c0d28ba0034965b458fbcc8296856db44afb231237da6856a97b33a",
+          "ref": "b72b9a13-8b9e-4aa4-9e96-468f5944c089"
+        }
+      },
+      "inventory": {
+        "COFFEE": {
+          "price": 1250,
+          "sku": "COFFEE",
+          "stock": 30
+        },
+        "TEA": {
+          "price": 750,
+          "sku": "TEA",
+          "stock": 15
+        }
+      },
+      "reservations": {
+        "8a863fc2-a904-4b2e-820e-1fe4ea194945": {
+          "order_ref": "8a863fc2-a904-4b2e-820e-1fe4ea194945",
+          "quantities": {
+            "COFFEE": 1
+          },
+          "state": "released"
+        },
+        "eb9526d4-0f43-42b8-8004-7e56123e47b2": {
+          "order_ref": "eb9526d4-0f43-42b8-8004-7e56123e47b2",
+          "quantities": {
+            "TEA": 1
+          },
+          "state": "held"
+        },
+        "2301cc12-4761-46c4-a739-3aa24af1f223": {
+          "order_ref": "2301cc12-4761-46c4-a739-3aa24af1f223",
+          "quantities": {
+            "TEA": 1
+          },
+          "state": "held"
+        },
+        "fc1be7e7-2913-41d1-8bef-3a751b33374e": {
+          "order_ref": "fc1be7e7-2913-41d1-8bef-3a751b33374e",
+          "quantities": {
+            "TEA": 1
+          },
+          "state": "held"
+        },
+        "e353e9f6-3af8-4cc2-bd31-2dda5c83a6d5": {
+          "order_ref": "e353e9f6-3af8-4cc2-bd31-2dda5c83a6d5",
+          "quantities": {
+            "TEA": 1
+          },
+          "state": "held"
+        },
+        "b72b9a13-8b9e-4aa4-9e96-468f5944c089": {
+          "order_ref": "b72b9a13-8b9e-4aa4-9e96-468f5944c089",
+          "quantities": {
+            "TEA": 1
+          },
+          "state": "held"
+        }
+      },
+      "orders": {
+        "8a863fc2-a904-4b2e-820e-1fe4ea194945": {
+          "lines": [
+            {
+              "product_code": "COFFEE",
+              "units": 1
+            }
+          ],
+          "order_ref": "8a863fc2-a904-4b2e-820e-1fe4ea194945",
+          "phase": "cancelled",
+          "sequence": 1,
+          "total_minor": 1250
+        },
+        "eb9526d4-0f43-42b8-8004-7e56123e47b2": {
+          "lines": [
+            {
+              "product_code": "TEA",
+              "units": 1
+            }
+          ],
+          "order_ref": "eb9526d4-0f43-42b8-8004-7e56123e47b2",
+          "phase": "confirmed",
+          "sequence": 2,
+          "total_minor": 750
+        },
+        "2301cc12-4761-46c4-a739-3aa24af1f223": {
+          "lines": [
+            {
+              "product_code": "TEA",
+              "units": 1
+            }
+          ],
+          "order_ref": "2301cc12-4761-46c4-a739-3aa24af1f223",
+          "phase": "confirmed",
+          "sequence": 3,
+          "total_minor": 750
+        },
+        "fc1be7e7-2913-41d1-8bef-3a751b33374e": {
+          "lines": [
+            {
+              "product_code": "TEA",
+              "units": 1
+            }
+          ],
+          "order_ref": "fc1be7e7-2913-41d1-8bef-3a751b33374e",
+          "phase": "confirmed",
+          "sequence": 4,
+          "total_minor": 750
+        },
+        "e353e9f6-3af8-4cc2-bd31-2dda5c83a6d5": {
+          "lines": [
+            {
+              "product_code": "TEA",
+              "units": 1
+            }
+          ],
+          "order_ref": "e353e9f6-3af8-4cc2-bd31-2dda5c83a6d5",
+          "phase": "confirmed",
+          "sequence": 5,
+          "total_minor": 750
+        },
+        "b72b9a13-8b9e-4aa4-9e96-468f5944c089": {
+          "lines": [
+            {
+              "product_code": "TEA",
+              "units": 1
+            }
+          ],
+          "order_ref": "b72b9a13-8b9e-4aa4-9e96-468f5944c089",
+          "phase": "confirmed",
+          "sequence": 6,
+          "total_minor": 750
+        }
+      },
+      "payments": {
+        "charge:eb9526d4-0f43-42b8-8004-7e56123e47b2": {
+          "amount": 750,
+          "fingerprint": "6286ef45b10a6cb43baebd209d3fec060ee4907864ba96e4f1c52d5a565ad8b7",
+          "kind": "charge",
+          "order_ref": "eb9526d4-0f43-42b8-8004-7e56123e47b2",
+          "payment_ref": "a30f06ce-cfe9-4478-83d1-2ae2fa4bb10e"
+        },
+        "charge:2301cc12-4761-46c4-a739-3aa24af1f223": {
+          "amount": 750,
+          "fingerprint": "2f980ea953a34038908bbfe738798263d44c15fcbe2413468c521ca3b1b23fda",
+          "kind": "charge",
+          "order_ref": "2301cc12-4761-46c4-a739-3aa24af1f223",
+          "payment_ref": "9ae9ab0d-557c-416c-b741-f7bc97cc117c"
+        },
+        "charge:fc1be7e7-2913-41d1-8bef-3a751b33374e": {
+          "amount": 750,
+          "fingerprint": "51f9e5daf1e973f36b15a04bb30cc358fa810d76849afaa3a177ca1b608ac25b",
+          "kind": "charge",
+          "order_ref": "fc1be7e7-2913-41d1-8bef-3a751b33374e",
+          "payment_ref": "803adb44-50cf-464f-b0a7-48da9fa1262a"
+        },
+        "charge:e353e9f6-3af8-4cc2-bd31-2dda5c83a6d5": {
+          "amount": 750,
+          "fingerprint": "5ae7b857346d0df7e2a0eda77a25f272f3356952b236990b0c52d8d1a09fc6ba",
+          "kind": "charge",
+          "order_ref": "e353e9f6-3af8-4cc2-bd31-2dda5c83a6d5",
+          "payment_ref": "edf67cc7-4f6e-41fa-94d6-505bcdf9246b"
+        },
+        "charge:b72b9a13-8b9e-4aa4-9e96-468f5944c089": {
+          "amount": 750,
+          "fingerprint": "088eccfe2dbb4eb46669501920da6591be0d0e07a60fef3ae00db7f2c9c867c3",
+          "kind": "charge",
+          "order_ref": "b72b9a13-8b9e-4aa4-9e96-468f5944c089",
+          "payment_ref": "10d37ef5-4e34-4178-8e83-0e5d18eb4f06"
+        }
+      },
+      "payment_keys": {
+        "payment:1:page-0": {
+          "fingerprint": "6286ef45b10a6cb43baebd209d3fec060ee4907864ba96e4f1c52d5a565ad8b7"
+        },
+        "payment:1:page-1": {
+          "fingerprint": "2f980ea953a34038908bbfe738798263d44c15fcbe2413468c521ca3b1b23fda"
+        },
+        "payment:1:page-2": {
+          "fingerprint": "51f9e5daf1e973f36b15a04bb30cc358fa810d76849afaa3a177ca1b608ac25b"
+        },
+        "payment:1:page-3": {
+          "fingerprint": "5ae7b857346d0df7e2a0eda77a25f272f3356952b236990b0c52d8d1a09fc6ba"
+        },
+        "payment:1:page-4": {
+          "fingerprint": "088eccfe2dbb4eb46669501920da6591be0d0e07a60fef3ae00db7f2c9c867c3"
+        }
+      },
+      "counters": {
+        "orders": 6
+      }
+    }
+  },
+  "elapsed_ms": 1355.876
+}

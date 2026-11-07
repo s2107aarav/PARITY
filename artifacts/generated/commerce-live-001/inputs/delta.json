@@ -1,0 +1,1305 @@
+{
+  "schema_version": 1,
+  "old": {
+    "title": "Commerce V1",
+    "version": "1.0.0"
+  },
+  "new": {
+    "title": "Commerce V2",
+    "version": "2.0.0"
+  },
+  "changes": [
+    {
+      "kind": "removed_operation",
+      "operation": "POST /checkout",
+      "evidence": [
+        {
+          "document": "old",
+          "pointer": "#/paths/~1checkout/post"
+        }
+      ],
+      "certainty": "static",
+      "semantic_mapping": "unknown; inspect behavior"
+    },
+    {
+      "kind": "responses_changed",
+      "operation": "GET /orders",
+      "successor": "GET /orders",
+      "before": {
+        "200": {
+          "description": "Successful Response",
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "orders": {
+                    "items": {
+                      "properties": {
+                        "id": {
+                          "type": "integer",
+                          "title": "Id"
+                        },
+                        "status": {
+                          "type": "string",
+                          "title": "Status"
+                        },
+                        "amount": {
+                          "type": "integer",
+                          "title": "Amount"
+                        },
+                        "items": {
+                          "items": {
+                            "properties": {
+                              "sku": {
+                                "type": "string",
+                                "title": "Sku"
+                              },
+                              "quantity": {
+                                "type": "integer",
+                                "maximum": 10000.0,
+                                "exclusiveMinimum": 0.0,
+                                "title": "Quantity"
+                              }
+                            },
+                            "additionalProperties": false,
+                            "type": "object",
+                            "required": [
+                              "sku",
+                              "quantity"
+                            ],
+                            "title": "Item"
+                          },
+                          "type": "array",
+                          "title": "Items"
+                        }
+                      },
+                      "additionalProperties": false,
+                      "type": "object",
+                      "required": [
+                        "id",
+                        "status",
+                        "amount",
+                        "items"
+                      ],
+                      "title": "LegacyOrder"
+                    },
+                    "type": "array",
+                    "title": "Orders"
+                  },
+                  "total": {
+                    "type": "integer",
+                    "title": "Total"
+                  },
+                  "page": {
+                    "type": "integer",
+                    "title": "Page"
+                  },
+                  "page_size": {
+                    "type": "integer",
+                    "title": "Page Size"
+                  }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                  "orders",
+                  "total",
+                  "page",
+                  "page_size"
+                ],
+                "title": "OrderPage"
+              }
+            }
+          }
+        },
+        "422": {
+          "description": "Business error; see notes.md for operation-specific codes",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "error": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "error"
+                ]
+              }
+            }
+          }
+        },
+        "402": {
+          "description": "Business error; see notes.md for operation-specific codes",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "error": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "error"
+                ]
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "Business error; see notes.md for operation-specific codes",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "error": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "error"
+                ]
+              }
+            }
+          }
+        },
+        "409": {
+          "description": "Business error; see notes.md for operation-specific codes",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "error": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "error"
+                ]
+              }
+            }
+          }
+        },
+        "503": {
+          "description": "Business error; see notes.md for operation-specific codes",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "error": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "error"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "after": {
+        "200": {
+          "description": "Successful Response",
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "data": {
+                    "items": {
+                      "properties": {
+                        "lines": {
+                          "items": {
+                            "properties": {
+                              "product_code": {
+                                "type": "string",
+                                "title": "Product Code"
+                              },
+                              "units": {
+                                "type": "integer",
+                                "maximum": 10000.0,
+                                "exclusiveMinimum": 0.0,
+                                "title": "Units"
+                              }
+                            },
+                            "additionalProperties": false,
+                            "type": "object",
+                            "required": [
+                              "product_code",
+                              "units"
+                            ],
+                            "title": "Line"
+                          },
+                          "type": "array",
+                          "maxItems": 20,
+                          "minItems": 1,
+                          "title": "Lines"
+                        },
+                        "total_minor": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0.0,
+                          "title": "Total Minor"
+                        },
+                        "order_ref": {
+                          "type": "string",
+                          "title": "Order Ref"
+                        },
+                        "phase": {
+                          "type": "string",
+                          "title": "Phase"
+                        },
+                        "sequence": {
+                          "type": "integer",
+                          "title": "Sequence"
+                        }
+                      },
+                      "additionalProperties": false,
+                      "type": "object",
+                      "required": [
+                        "lines",
+                        "total_minor",
+                        "order_ref",
+                        "phase",
+                        "sequence"
+                      ],
+                      "title": "Order"
+                    },
+                    "type": "array",
+                    "title": "Data"
+                  },
+                  "next_cursor": {
+                    "anyOf": [
+                      {
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "title": "Next Cursor"
+                  }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                  "data",
+                  "next_cursor"
+                ],
+                "title": "CursorPage"
+              }
+            }
+          }
+        },
+        "422": {
+          "description": "Business error; see notes.md for operation-specific codes",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "problem": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ]
+                  }
+                },
+                "required": [
+                  "problem"
+                ]
+              }
+            }
+          }
+        },
+        "402": {
+          "description": "Business error; see notes.md for operation-specific codes",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "problem": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ]
+                  }
+                },
+                "required": [
+                  "problem"
+                ]
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "Business error; see notes.md for operation-specific codes",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "problem": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ]
+                  }
+                },
+                "required": [
+                  "problem"
+                ]
+              }
+            }
+          }
+        },
+        "409": {
+          "description": "Business error; see notes.md for operation-specific codes",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "problem": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ]
+                  }
+                },
+                "required": [
+                  "problem"
+                ]
+              }
+            }
+          }
+        },
+        "503": {
+          "description": "Business error; see notes.md for operation-specific codes",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "problem": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ]
+                  }
+                },
+                "required": [
+                  "problem"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "evidence": [
+        {
+          "document": "old",
+          "pointer": "#/paths/~1orders/get"
+        },
+        {
+          "document": "new",
+          "pointer": "#/paths/~1orders/get"
+        }
+      ],
+      "certainty": "static"
+    },
+    {
+      "kind": "parameters_changed",
+      "operation": "GET /orders",
+      "successor": "GET /orders",
+      "before": [
+        {
+          "name": "page",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "integer",
+            "minimum": 1,
+            "default": 1,
+            "title": "Page"
+          }
+        },
+        {
+          "name": "page_size",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "integer",
+            "maximum": 100,
+            "minimum": 1,
+            "default": 2,
+            "title": "Page Size"
+          }
+        }
+      ],
+      "after": [
+        {
+          "name": "cursor",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "integer",
+            "minimum": 0,
+            "default": 0,
+            "title": "Cursor"
+          }
+        },
+        {
+          "name": "limit",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "integer",
+            "maximum": 100,
+            "minimum": 1,
+            "default": 2,
+            "title": "Limit"
+          }
+        }
+      ],
+      "evidence": [
+        {
+          "document": "old",
+          "pointer": "#/paths/~1orders/get"
+        },
+        {
+          "document": "new",
+          "pointer": "#/paths/~1orders/get"
+        }
+      ],
+      "certainty": "static"
+    },
+    {
+      "kind": "pagination_review",
+      "operation": "GET /orders",
+      "evidence": [
+        {
+          "document": "old",
+          "pointer": "#/paths/~1orders/get"
+        },
+        {
+          "document": "new",
+          "pointer": "#/paths/~1orders/get"
+        }
+      ],
+      "certainty": "requires_behavioral_evidence"
+    },
+    {
+      "kind": "operation_path_changed",
+      "operation": "GET /orders/{order_id}",
+      "successor": "GET /orders/{order_ref}",
+      "evidence": [
+        {
+          "document": "old",
+          "pointer": "#/paths/~1orders~1{order_id}/get"
+        },
+        {
+          "document": "new",
+          "pointer": "#/paths/~1orders~1{order_ref}/get"
+        }
+      ],
+      "certainty": "static"
+    },
+    {
+      "kind": "responses_changed",
+      "operation": "GET /orders/{order_id}",
+      "successor": "GET /orders/{order_ref}",
+      "before": {
+        "200": {
+          "description": "Successful Response",
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "title": "Id"
+                  },
+                  "status": {
+                    "type": "string",
+                    "title": "Status"
+                  },
+                  "amount": {
+                    "type": "integer",
+                    "title": "Amount"
+                  },
+                  "items": {
+                    "items": {
+                      "properties": {
+                        "sku": {
+                          "type": "string",
+                          "title": "Sku"
+                        },
+                        "quantity": {
+                          "type": "integer",
+                          "maximum": 10000.0,
+                          "exclusiveMinimum": 0.0,
+                          "title": "Quantity"
+                        }
+                      },
+                      "additionalProperties": false,
+                      "type": "object",
+                      "required": [
+                        "sku",
+                        "quantity"
+                      ],
+                      "title": "Item"
+                    },
+                    "type": "array",
+                    "title": "Items"
+                  }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                  "id",
+                  "status",
+                  "amount",
+                  "items"
+                ],
+                "title": "LegacyOrder"
+              }
+            }
+          }
+        },
+        "422": {
+          "description": "Business error; see notes.md for operation-specific codes",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "error": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "error"
+                ]
+              }
+            }
+          }
+        },
+        "402": {
+          "description": "Business error; see notes.md for operation-specific codes",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "error": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "error"
+                ]
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "Business error; see notes.md for operation-specific codes",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "error": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "error"
+                ]
+              }
+            }
+          }
+        },
+        "409": {
+          "description": "Business error; see notes.md for operation-specific codes",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "error": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "error"
+                ]
+              }
+            }
+          }
+        },
+        "503": {
+          "description": "Business error; see notes.md for operation-specific codes",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "error": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "error"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "after": {
+        "200": {
+          "description": "Successful Response",
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "lines": {
+                    "items": {
+                      "properties": {
+                        "product_code": {
+                          "type": "string",
+                          "title": "Product Code"
+                        },
+                        "units": {
+                          "type": "integer",
+                          "maximum": 10000.0,
+                          "exclusiveMinimum": 0.0,
+                          "title": "Units"
+                        }
+                      },
+                      "additionalProperties": false,
+                      "type": "object",
+                      "required": [
+                        "product_code",
+                        "units"
+                      ],
+                      "title": "Line"
+                    },
+                    "type": "array",
+                    "maxItems": 20,
+                    "minItems": 1,
+                    "title": "Lines"
+                  },
+                  "total_minor": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0.0,
+                    "title": "Total Minor"
+                  },
+                  "order_ref": {
+                    "type": "string",
+                    "title": "Order Ref"
+                  },
+                  "phase": {
+                    "type": "string",
+                    "title": "Phase"
+                  },
+                  "sequence": {
+                    "type": "integer",
+                    "title": "Sequence"
+                  }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                  "lines",
+                  "total_minor",
+                  "order_ref",
+                  "phase",
+                  "sequence"
+                ],
+                "title": "Order"
+              }
+            }
+          }
+        },
+        "422": {
+          "description": "Business error; see notes.md for operation-specific codes",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "problem": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ]
+                  }
+                },
+                "required": [
+                  "problem"
+                ]
+              }
+            }
+          }
+        },
+        "402": {
+          "description": "Business error; see notes.md for operation-specific codes",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "problem": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ]
+                  }
+                },
+                "required": [
+                  "problem"
+                ]
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "Business error; see notes.md for operation-specific codes",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "problem": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ]
+                  }
+                },
+                "required": [
+                  "problem"
+                ]
+              }
+            }
+          }
+        },
+        "409": {
+          "description": "Business error; see notes.md for operation-specific codes",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "problem": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ]
+                  }
+                },
+                "required": [
+                  "problem"
+                ]
+              }
+            }
+          }
+        },
+        "503": {
+          "description": "Business error; see notes.md for operation-specific codes",
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "problem": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ]
+                  }
+                },
+                "required": [
+                  "problem"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "evidence": [
+        {
+          "document": "old",
+          "pointer": "#/paths/~1orders~1{order_id}/get"
+        },
+        {
+          "document": "new",
+          "pointer": "#/paths/~1orders~1{order_ref}/get"
+        }
+      ],
+      "certainty": "static"
+    },
+    {
+      "kind": "parameters_changed",
+      "operation": "GET /orders/{order_id}",
+      "successor": "GET /orders/{order_ref}",
+      "before": [
+        {
+          "name": "order_id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "integer",
+            "title": "Order Id"
+          }
+        }
+      ],
+      "after": [
+        {
+          "name": "order_ref",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "title": "Order Ref"
+          }
+        }
+      ],
+      "evidence": [
+        {
+          "document": "old",
+          "pointer": "#/paths/~1orders~1{order_id}/get"
+        },
+        {
+          "document": "new",
+          "pointer": "#/paths/~1orders~1{order_ref}/get"
+        }
+      ],
+      "certainty": "static"
+    },
+    {
+      "kind": "removed_operation",
+      "operation": "POST /orders/{order_id}/cancel",
+      "evidence": [
+        {
+          "document": "old",
+          "pointer": "#/paths/~1orders~1{order_id}~1cancel/post"
+        }
+      ],
+      "certainty": "static",
+      "semantic_mapping": "unknown; inspect behavior"
+    },
+    {
+      "kind": "removed_operation",
+      "operation": "GET /inventory/{sku}",
+      "evidence": [
+        {
+          "document": "old",
+          "pointer": "#/paths/~1inventory~1{sku}/get"
+        }
+      ],
+      "certainty": "static",
+      "semantic_mapping": "unknown; inspect behavior"
+    }
+  ],
+  "added_operations": [
+    "GET /orders/{order_ref}",
+    "GET /stock/{product_code}",
+    "POST /inventory/reservations",
+    "POST /orders",
+    "POST /orders/{order_ref}/confirm",
+    "POST /orders/{order_ref}/void",
+    "POST /payments"
+  ],
+  "schema_fields": {
+    "old": {
+      "Checkout": {
+        "items": {
+          "type": "array",
+          "required": true
+        },
+        "items[].sku": {
+          "type": "string",
+          "required": true
+        },
+        "items[].quantity": {
+          "type": "integer",
+          "required": true
+        },
+        "amount": {
+          "type": "integer",
+          "required": true
+        },
+        "payment_token": {
+          "type": "string",
+          "required": true
+        }
+      },
+      "HTTPValidationError": {
+        "detail": {
+          "type": "array",
+          "required": false
+        },
+        "detail[].loc": {
+          "type": "array",
+          "required": true
+        },
+        "detail[].msg": {
+          "type": "string",
+          "required": true
+        },
+        "detail[].type": {
+          "type": "string",
+          "required": true
+        },
+        "detail[].input": {
+          "type": "composite",
+          "required": false
+        },
+        "detail[].ctx": {
+          "type": "object",
+          "required": false
+        }
+      },
+      "Item": {
+        "sku": {
+          "type": "string",
+          "required": true
+        },
+        "quantity": {
+          "type": "integer",
+          "required": true
+        }
+      },
+      "LegacyOrder": {
+        "id": {
+          "type": "integer",
+          "required": true
+        },
+        "status": {
+          "type": "string",
+          "required": true
+        },
+        "amount": {
+          "type": "integer",
+          "required": true
+        },
+        "items": {
+          "type": "array",
+          "required": true
+        },
+        "items[].sku": {
+          "type": "string",
+          "required": true
+        },
+        "items[].quantity": {
+          "type": "integer",
+          "required": true
+        }
+      },
+      "OrderPage": {
+        "orders": {
+          "type": "array",
+          "required": true
+        },
+        "orders[].id": {
+          "type": "integer",
+          "required": true
+        },
+        "orders[].status": {
+          "type": "string",
+          "required": true
+        },
+        "orders[].amount": {
+          "type": "integer",
+          "required": true
+        },
+        "orders[].items": {
+          "type": "array",
+          "required": true
+        },
+        "orders[].items[].sku": {
+          "type": "string",
+          "required": true
+        },
+        "orders[].items[].quantity": {
+          "type": "integer",
+          "required": true
+        },
+        "total": {
+          "type": "integer",
+          "required": true
+        },
+        "page": {
+          "type": "integer",
+          "required": true
+        },
+        "page_size": {
+          "type": "integer",
+          "required": true
+        }
+      },
+      "Stock": {
+        "sku": {
+          "type": "string",
+          "required": true
+        },
+        "available": {
+          "type": "integer",
+          "required": true
+        }
+      },
+      "ValidationError": {
+        "loc": {
+          "type": "array",
+          "required": true
+        },
+        "msg": {
+          "type": "string",
+          "required": true
+        },
+        "type": {
+          "type": "string",
+          "required": true
+        },
+        "input": {
+          "type": "composite",
+          "required": false
+        },
+        "ctx": {
+          "type": "object",
+          "required": false
+        }
+      }
+    },
+    "new": {
+      "CursorPage": {
+        "data": {
+          "type": "array",
+          "required": true
+        },
+        "data[].lines": {
+          "type": "array",
+          "required": true
+        },
+        "data[].lines[].product_code": {
+          "type": "string",
+          "required": true
+        },
+        "data[].lines[].units": {
+          "type": "integer",
+          "required": true
+        },
+        "data[].total_minor": {
+          "type": "integer",
+          "required": true
+        },
+        "data[].order_ref": {
+          "type": "string",
+          "required": true
+        },
+        "data[].phase": {
+          "type": "string",
+          "required": true
+        },
+        "data[].sequence": {
+          "type": "integer",
+          "required": true
+        },
+        "next_cursor": {
+          "type": "composite",
+          "required": true
+        }
+      },
+      "Draft": {
+        "lines": {
+          "type": "array",
+          "required": true
+        },
+        "lines[].product_code": {
+          "type": "string",
+          "required": true
+        },
+        "lines[].units": {
+          "type": "integer",
+          "required": true
+        },
+        "total_minor": {
+          "type": "integer",
+          "required": true
+        }
+      },
+      "HTTPValidationError": {
+        "detail": {
+          "type": "array",
+          "required": false
+        },
+        "detail[].loc": {
+          "type": "array",
+          "required": true
+        },
+        "detail[].msg": {
+          "type": "string",
+          "required": true
+        },
+        "detail[].type": {
+          "type": "string",
+          "required": true
+        },
+        "detail[].input": {
+          "type": "composite",
+          "required": false
+        },
+        "detail[].ctx": {
+          "type": "object",
+          "required": false
+        }
+      },
+      "Line": {
+        "product_code": {
+          "type": "string",
+          "required": true
+        },
+        "units": {
+          "type": "integer",
+          "required": true
+        }
+      },
+      "Order": {
+        "lines": {
+          "type": "array",
+          "required": true
+        },
+        "lines[].product_code": {
+          "type": "string",
+          "required": true
+        },
+        "lines[].units": {
+          "type": "integer",
+          "required": true
+        },
+        "total_minor": {
+          "type": "integer",
+          "required": true
+        },
+        "order_ref": {
+          "type": "string",
+          "required": true
+        },
+        "phase": {
+          "type": "string",
+          "required": true
+        },
+        "sequence": {
+          "type": "integer",
+          "required": true
+        }
+      },
+      "OrderRef": {
+        "order_ref": {
+          "type": "string",
+          "required": true
+        }
+      },
+      "Payment": {
+        "order_ref": {
+          "type": "string",
+          "required": true
+        },
+        "total_minor": {
+          "type": "integer",
+          "required": true
+        },
+        "token": {
+          "type": "string",
+          "required": true
+        }
+      },
+      "ValidationError": {
+        "loc": {
+          "type": "array",
+          "required": true
+        },
+        "msg": {
+          "type": "string",
+          "required": true
+        },
+        "type": {
+          "type": "string",
+          "required": true
+        },
+        "input": {
+          "type": "composite",
+          "required": false
+        },
+        "ctx": {
+          "type": "object",
+          "required": false
+        }
+      }
+    }
+  },
+  "uncertainties": [
+    "Matching operationId is a candidate mapping, not proof of behavior.",
+    "Atomicity, retry recovery, money and stock effects require docs and bounded probes.",
+    "Removed operations plus added primitives may require a one-to-many workflow; semantic evidence required."
+  ]
+}

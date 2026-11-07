@@ -1,0 +1,24 @@
+{
+  "provenance": "real-authenticated-model-run",
+  "domain": "commerce",
+  "status": "public_validation_passed",
+  "source_attempts": 2,
+  "model_calls": 6,
+  "model_responses": 6,
+  "parent": {
+    "artifact": "commerce-live-001",
+    "adapter_sha256": "6156d576adf406f650976d4b496623fbaefb98b9f8921a79e6477bf2322e7aba",
+    "manifest_sha256": "865875da87e3d03fb3dd294ac90a5fa78ce664619b17c043d7bbf364513debb3"
+  },
+  "elapsed_s": 123.571,
+  "cost_usd": null,
+  "adapter_sha256": "18fd24438d8cda806a9c90762ead58510540c4b3401b616b11a4e208624132ee",
+  "plan_sha256": "b70adf4ad8d884f3ac4456ef10a9aa7af72c3044141824337e7b2218bee9326f",
+  "inputs": {
+    "new.json": "d48aa6ce4928bbdb868685c3fc3abce6b7661374344a0f5f222a8b605bbeefd6",
+    "old.json": "5146fd96cb67b57188af518dbce817d6afc77a363636c8cba09646b465f96196",
+    "delta.json": "c00c4d682a93f3cfe3422be2252332b6f603e183f26a2a0bbf2d71856e61d951",
+    "notes.md": "efc7867a7d01122b72777bda58da1df32c991200a8ba7edbe35699b2c463383b"
+  },
+  "note": "Public trial success is not independent acceptance. No reference/checker source supplied."
+}

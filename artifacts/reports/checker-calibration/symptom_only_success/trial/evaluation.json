@@ -1,0 +1,226 @@
+{
+  "suite": "commerce",
+  "artifact_sha256": "198711ff330f76b492475da1d165794498af296a2c1cfb83505d5b40d354a3df",
+  "checker_sha256": "612a33ca5212bb17de794c9eb8f465a0826e941eedd371ee12734bb6954268f7",
+  "legacy_client_sha256": "9853712ef9f4244eafba3f374d78287ed1b15caf1d6d1da83b7ad8c194ade1dc",
+  "seed": 0,
+  "scenarios": [
+    {
+      "scenario": "ordinary",
+      "seed": 0,
+      "status": "fail",
+      "before": {
+        "v1": {
+          "inventory": {
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 30
+            },
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            }
+          }
+        },
+        "v2": {
+          "inventory": {
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 30
+            },
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            }
+          }
+        }
+      },
+      "mismatch": "AssertionError: business effects differ: expected={'orders': [{'status': 'paid', 'amount': 1250, 'items': [{'quantity': 1, 'sku': 'COFFEE'}]}], 'inventory': {'TEA': 20, 'COFFEE': 29}, 'charges': 1250, 'refunds': 0}, actual={'orders': [], 'inventory': {'COFFEE': 30, 'TEA': 20}, 'charges': 0, 'refunds': 0}",
+      "actions": [
+        {
+          "action": "checkout",
+          "expected_status": 201,
+          "actual_status": 201,
+          "expected": {
+            "id": 1,
+            "status": "paid",
+            "amount": 1250,
+            "items": [
+              {
+                "sku": "COFFEE",
+                "quantity": 1
+              }
+            ]
+          },
+          "actual": {
+            "id": 1,
+            "status": "paid",
+            "amount": 1250,
+            "items": [
+              {
+                "sku": "COFFEE",
+                "quantity": 1
+              }
+            ]
+          },
+          "v1_ms": 17.174,
+          "adapter_ms": 1.852
+        },
+        {
+          "action": "retrieve",
+          "expected_status": 200,
+          "actual_status": 200,
+          "expected": {
+            "id": 1,
+            "status": "paid",
+            "amount": 1250,
+            "items": [
+              {
+                "sku": "COFFEE",
+                "quantity": 1
+              }
+            ]
+          },
+          "actual": {
+            "id": 1,
+            "status": "paid",
+            "amount": 1250,
+            "items": [
+              {
+                "sku": "COFFEE",
+                "quantity": 1
+              }
+            ]
+          },
+          "v1_ms": 1.798,
+          "adapter_ms": 1.016
+        },
+        {
+          "action": "list",
+          "expected_status": 200,
+          "actual_status": 200,
+          "expected": {
+            "orders": [
+              {
+                "id": 1,
+                "status": "paid",
+                "amount": 1250,
+                "items": [
+                  {
+                    "sku": "COFFEE",
+                    "quantity": 1
+                  }
+                ]
+              }
+            ],
+            "total": 1,
+            "page": 1,
+            "page_size": 2
+          },
+          "actual": {
+            "orders": [
+              {
+                "id": 1,
+                "status": "paid",
+                "amount": 1250,
+                "items": [
+                  {
+                    "sku": "COFFEE",
+                    "quantity": 1
+                  }
+                ]
+              }
+            ],
+            "total": 1,
+            "page": 1,
+            "page_size": 2
+          },
+          "v1_ms": 1.889,
+          "adapter_ms": 0.993
+        },
+        {
+          "action": "inventory",
+          "expected_status": 200,
+          "actual_status": 200,
+          "expected": {
+            "sku": "COFFEE",
+            "available": 29
+          },
+          "actual": {
+            "sku": "COFFEE",
+            "available": 29
+          },
+          "v1_ms": 1.559,
+          "adapter_ms": 0.882
+        }
+      ],
+      "after": {
+        "v1": {
+          "inventory": {
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            },
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 29
+            }
+          },
+          "counters": {
+            "orders": 1
+          },
+          "orders": {
+            "1": {
+              "amount": 1250,
+              "id": 1,
+              "items": [
+                {
+                  "quantity": 1,
+                  "sku": "COFFEE"
+                }
+              ],
+              "status": "paid"
+            }
+          },
+          "payments": {
+            "charge:1": {
+              "amount": 1250,
+              "kind": "charge",
+              "order_id": 1
+            }
+          },
+          "requests": {
+            "cart-1": {
+              "fingerprint": "8e24a2d30a1ff7444ba8e104aeec830df3ef2f41efc38ff64d8ce31e23903fc3",
+              "id": 1
+            }
+          }
+        },
+        "v2": {
+          "inventory": {
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 30
+            },
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            }
+          }
+        }
+      },
+      "elapsed_ms": 1294.53
+    }
+  ],
+  "passed": 0,
+  "total": 1,
+  "replay": "parity validate --adapter artifacts/reports/checker-calibration/symptom_only_success --suite commerce"
+}

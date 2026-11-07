@@ -1,0 +1,117 @@
+.venv/bin/python -m pytest -q
+F...................................................................     [100%]
+=================================== FAILURES ===================================
+_________________ test_checker_rejects_real_defective_adapters _________________
+
+source = PosixPath('/private/var/folders/hv/5v5l3s8d4mgbhqjq55r0grhm0000gn/T/pytest-of-aaravsingh/pytest-158/test_checker_rejects_real_defe0/symptom_only_success/adapter.py')
+output = PosixPath('/private/var/folders/hv/5v5l3s8d4mgbhqjq55r0grhm0000gn/T/pytest-of-aaravsingh/pytest-158/test_checker_rejects_real_defe0/symptom_only_success/trial')
+scenarios = ('ordinary',), trusted = False
+
+    def evaluate(source: Path, output: Path, *, scenarios=SCENARIOS, trusted=False):
+        output.mkdir(parents=True, exist_ok=True)
+        checker_path = Path(__file__)
+        checker_hash, client_hash = (
+            digest(checker_path),
+            digest(Path(__file__).parent.parent / "apps/legacy_client.py"),
+        )
+        original_checker = checker_path.read_bytes()
+        rows = []
+        for index, scenario in enumerate(scenarios):
+            root = output / f"{index:02d}-{scenario}"
+            root.mkdir()
+            replay = None
+            started = time.perf_counter()
+            record = {"scenario": scenario, "seed": 0, "status": "fail"}
+            try:
+                replay = Replay(source, root, trusted=trusted)
+                record["before"] = {
+                    "v1": replay.baseline.app.state.store.snapshot(),
+                    "v2": replay.successor.app.state.store.snapshot(),
+                }
+>               record["effects"] = replay.run_scenario(scenario)
+                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+parity/replay.py:330: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+parity/replay.py:299: in run_scenario
+    return self.verify_state()
+           ^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <parity.replay.Replay object at 0x11057f4d0>
+
+    def verify_state(self):
+        a = effect(self.baseline.app.state.store.snapshot(), 1)
+        b = effect(self.successor.app.state.store.snapshot(), 2)
+>       assert a == b, f"business effects differ: expected={a}, actual={b}"
+E       AssertionError: business effects differ: expected={'orders': [{'status': 'paid', 'amount': 1250, 'items': [{'quantity': 1, 'sku': 'COFFEE'}]}], 'inventory': {'TEA': 20, 'COFFEE': 29}, 'charges': 1250, 'refunds': 0}, actual={'orders': [], 'inventory': {'COFFEE': 30, 'TEA': 20}, 'charges': 0, 'refunds': 0}
+
+parity/replay.py:171: AssertionError
+
+During handling of the above exception, another exception occurred:
+
+tmp_path = PosixPath('/private/var/folders/hv/5v5l3s8d4mgbhqjq55r0grhm0000gn/T/pytest-of-aaravsingh/pytest-158/test_checker_rejects_real_defe0')
+
+    def test_checker_rejects_real_defective_adapters(tmp_path):
+>       report = calibrate(ROOT / "artifacts/reference/commerce/adapter.py", tmp_path)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/adversarial/test_checker.py:9: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+parity/adversarial.py:60: in calibrate
+    report = evaluate(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+source = PosixPath('/private/var/folders/hv/5v5l3s8d4mgbhqjq55r0grhm0000gn/T/pytest-of-aaravsingh/pytest-158/test_checker_rejects_real_defe0/symptom_only_success/adapter.py')
+output = PosixPath('/private/var/folders/hv/5v5l3s8d4mgbhqjq55r0grhm0000gn/T/pytest-of-aaravsingh/pytest-158/test_checker_rejects_real_defe0/symptom_only_success/trial')
+scenarios = ('ordinary',), trusted = False
+
+    def evaluate(source: Path, output: Path, *, scenarios=SCENARIOS, trusted=False):
+        output.mkdir(parents=True, exist_ok=True)
+        checker_path = Path(__file__)
+        checker_hash, client_hash = (
+            digest(checker_path),
+            digest(Path(__file__).parent.parent / "apps/legacy_client.py"),
+        )
+        original_checker = checker_path.read_bytes()
+        rows = []
+        for index, scenario in enumerate(scenarios):
+            root = output / f"{index:02d}-{scenario}"
+            root.mkdir()
+            replay = None
+            started = time.perf_counter()
+            record = {"scenario": scenario, "seed": 0, "status": "fail"}
+            try:
+                replay = Replay(source, root, trusted=trusted)
+                record["before"] = {
+                    "v1": replay.baseline.app.state.store.snapshot(),
+                    "v2": replay.successor.app.state.store.snapshot(),
+                }
+                record["effects"] = replay.run_scenario(scenario)
+                record["status"] = "pass"
+                record["isolation"] = replay.worker.isolation
+            except Exception:
+                if replay:
+                    try:
+                        replay.worker.ensure_alive()
+                    except WorkerFailure as failure:
+                        exc = failure
+                record["failure_kind"] = (
+                    "worker_infrastructure"
+>                   if isinstance(exc, WorkerFailure)
+                                  ^^^
+                    else "semantic_or_trial_error"
+                )
+E               UnboundLocalError: cannot access local variable 'exc' where it is not associated with a value
+
+parity/replay.py:341: UnboundLocalError
+=============================== warnings summary ===============================
+.venv/lib/python3.12/site-packages/fastapi/testclient.py:1
+  /Users/aaravsingh/Library/Mobile Documents/com~apple~CloudDocs/PARITY/.venv/lib/python3.12/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/adversarial/test_checker.py::test_checker_rejects_real_defective_adapters
+1 failed, 67 passed, 1 warning in 84.41s (0:01:24)
+make: *** [test] Error 1

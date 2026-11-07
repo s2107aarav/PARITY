@@ -1,0 +1,1 @@
+{"tool":"finish","arguments":"{}","reason":"Revision 2 plan and source were accepted, and public tests passed, including the corrected validation precedence and lost-payment-response recovery. Validation is limited to public smoke checks."}

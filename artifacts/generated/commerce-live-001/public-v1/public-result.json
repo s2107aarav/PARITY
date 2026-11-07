@@ -1,0 +1,35 @@
+{
+  "passed": true,
+  "steps": [
+    {
+      "request": "POST /checkout",
+      "status": 201,
+      "body": {
+        "id": 1,
+        "status": "paid",
+        "amount": 1250,
+        "items": [
+          {
+            "sku": "COFFEE",
+            "quantity": 1
+          }
+        ]
+      }
+    },
+    {
+      "request": "declined checkout",
+      "status": 402,
+      "body": {
+        "error": "PAYMENT_DECLINED"
+      }
+    },
+    {
+      "request": "lost payment reply",
+      "status": 503,
+      "body": {
+        "error": "PENDING"
+      }
+    }
+  ],
+  "scope": "public smoke checks only"
+}

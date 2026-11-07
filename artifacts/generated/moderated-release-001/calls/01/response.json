@@ -1,0 +1,1 @@
+{"tool":"inspect_contract","arguments":"{\"document\":\"delta\"}","reason":"Inspect operation and schema differences before planning the migration."}

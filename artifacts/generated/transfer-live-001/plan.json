@@ -1,0 +1,115 @@
+{
+  "schema_version": 1,
+  "revision": 1,
+  "domain": "transfer",
+  "assumptions": [
+    "Supported scope is ticket creation and retrieval on a single host.",
+    "The documented idempotent upstream operations permit retry after lost responses."
+  ],
+  "mappings": [
+    {
+      "legacy_operation": "POST /tickets",
+      "target_operations": [
+        "POST /issues",
+        "POST /issues/{issue_ref}/comments",
+        "POST /issues/{issue_ref}/publish"
+      ],
+      "field_mappings": {
+        "title": "issues.summary",
+        "body": "initial comment.text",
+        "id": "ctx.id_for(issue.ref), allocated after publication",
+        "status": "open after publication"
+      },
+      "evidence": [
+        {
+          "document": "notes",
+          "pointer": "A legacy create needs three V2 steps.",
+          "confidence": "static"
+        }
+      ]
+    },
+    {
+      "legacy_operation": "GET /tickets/{ticket_id}",
+      "target_operations": [
+        "GET /issues/{issue_ref}"
+      ],
+      "field_mappings": {
+        "ticket_id": "ctx.upstream_id(ticket_id)",
+        "title": "summary",
+        "body": "sole initial comment",
+        "status": "state"
+      },
+      "evidence": [
+        {
+          "document": "notes",
+          "pointer": "GET /issues/{issue_ref} returns issue.",
+          "confidence": "static"
+        }
+      ]
+    }
+  ],
+  "workflow": [
+    {
+      "name": "draft",
+      "operation": "POST /issues",
+      "depends_on": [],
+      "retry": "Validate legacy schema and header; durably persist fingerprint of both fields before calling. Retry using the same upstream idempotency key; checkpoint ref before adding comment.",
+      "compensation": "No deletion endpoint exists; never expose unfinished drafts as legacy tickets."
+    },
+    {
+      "name": "description",
+      "operation": "POST /issues/{issue_ref}/comments",
+      "depends_on": [
+        "draft"
+      ],
+      "retry": "Use persisted ref and original body. Checkpoint completion; same-text retries are safe.",
+      "compensation": "No supported compensation endpoint; unfinished workflow remains unpublished."
+    },
+    {
+      "name": "publication",
+      "operation": "POST /issues/{issue_ref}/publish",
+      "depends_on": [
+        "description"
+      ],
+      "retry": "Retry publication after ambiguous failure, returning 503 PENDING until confirmed. Persist completion before returning the stable legacy result.",
+      "compensation": "Never undo ambiguous publication."
+    },
+    {
+      "name": "retrieve",
+      "operation": "GET /issues/{issue_ref}",
+      "depends_on": [],
+      "retry": "Resolve existing integer mapping; fetch and translate issue. Upstream 503 becomes PENDING.",
+      "compensation": "Read only."
+    }
+  ],
+  "errors": [
+    {
+      "upstream": "INVALID_INPUT or invalid legacy schema/header",
+      "legacy_status": 422,
+      "legacy_code": "INVALID"
+    },
+    {
+      "upstream": "KEY_CONFLICT or changed legacy fingerprint",
+      "legacy_status": 409,
+      "legacy_code": "KEY_REUSED"
+    },
+    {
+      "upstream": "MISSING_RESOURCE or unknown legacy identifier",
+      "legacy_status": 404,
+      "legacy_code": "NOT_FOUND"
+    },
+    {
+      "upstream": "503 or ambiguous connection failure",
+      "legacy_status": 503,
+      "legacy_code": "PENDING"
+    }
+  ],
+  "idempotency_strategy": "Serialize the entire request with ctx.lock(). Persist both-field fingerprint and workflow checkpoints by legacy key. Reject changed input, reuse upstream key after lost creation responses, resume comment and publication after restart, and replay completed results.",
+  "identifier_strategy": "Persist upstream UUID before dependent calls; allocate stable positive legacy integers through ctx.id_for only after confirmed publication, resolving reads with ctx.upstream_id.",
+  "pagination_strategy": "Not applicable: no listing operation requested.",
+  "limitations": [
+    "No update, delete, list, or auth support.",
+    "No upstream compensation primitive exists; unexpected permanent failures after draft creation cannot provide full rollback and must remain pending rather than falsely claim compensated atomic failure.",
+    "Serialization guarantees apply to the documented single-host runtime."
+  ]
+}

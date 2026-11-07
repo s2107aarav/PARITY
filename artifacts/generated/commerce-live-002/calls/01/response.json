@@ -1,0 +1,1 @@
+{"tool":"inspect_contract","arguments":"{\"document\":\"delta\"}","reason":"Inspect the contract delta before revising the existing adapter for the observed stock-versus-amount validation precedence failure."}

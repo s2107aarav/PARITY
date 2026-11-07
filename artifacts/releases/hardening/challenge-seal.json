@@ -1,0 +1,7 @@
+{
+  "contracts/moderated/v1.json": "c960b4a14d28ef217ae5af5b3856efed3a19ba724691dcc22de48775a4ca16d6",
+  "contracts/moderated/v2.json": "6344e93e31bae4833375591ded8d762f4b356a226aad201a33c5d4348f58b983",
+  "contracts/moderated/notes.md": "09abe110bbeb2b3e0c4471475adef34cd95e97bb5dd213bd42706774e3dd8949",
+  "parity/moderated_replay.py": "c2b74d5813a773ac955d861f39fd2b8f6baf79283ba1e1c2c466ccde1ddbf547",
+  "apps/moderated.py": "b8e9e0b174843ed1cdefe6ea1ef6529aa67758041a04d915ec733ea7f434dca3"
+}

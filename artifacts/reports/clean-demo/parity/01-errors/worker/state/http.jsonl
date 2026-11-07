@@ -1,0 +1,10 @@
+{"body": null, "method": "GET", "ms": 4.162, "path": "/stock/MISSING", "response": {"problem": {"kind": "PRODUCT_MISSING"}}, "status": 404}
+{"body": null, "method": "GET", "ms": 1.458, "path": "/stock/COFFEE", "response": {"product_code": "COFFEE", "units_available": 30}, "status": 200}
+{"body": {"lines": [{"product_code": "COFFEE", "units": 1}], "total_minor": 1}, "method": "POST", "ms": 1.893, "path": "/orders", "response": {"problem": {"kind": "BAD_TOTAL"}}, "status": 422}
+{"body": null, "method": "GET", "ms": 1.281, "path": "/stock/COFFEE", "response": {"product_code": "COFFEE", "units_available": 30}, "status": 200}
+{"body": {"lines": [{"product_code": "COFFEE", "units": 1}], "total_minor": 1250}, "method": "POST", "ms": 2.757, "path": "/orders", "response": {"lines": [{"product_code": "COFFEE", "units": 1}], "order_ref": "d56adc35-13ad-47bd-805e-02685dad7cda", "phase": "draft", "sequence": 1, "total_minor": 1250}, "status": 201}
+{"body": {"order_ref": "d56adc35-13ad-47bd-805e-02685dad7cda"}, "method": "POST", "ms": 2.771, "path": "/inventory/reservations", "response": {"order_ref": "d56adc35-13ad-47bd-805e-02685dad7cda", "quantities": {"COFFEE": 1}, "state": "held"}, "status": 200}
+{"body": {"order_ref": "d56adc35-13ad-47bd-805e-02685dad7cda", "token": "[REDACTED]", "total_minor": 1250}, "method": "POST", "ms": 1.906, "path": "/payments", "response": {"problem": {"kind": "DECLINED"}}, "status": 402}
+{"body": null, "method": "POST", "ms": 2.934, "path": "/orders/d56adc35-13ad-47bd-805e-02685dad7cda/void", "response": {"lines": [{"product_code": "COFFEE", "units": 1}], "order_ref": "d56adc35-13ad-47bd-805e-02685dad7cda", "phase": "cancelled", "sequence": 1, "total_minor": 1250}, "status": 200}
+{"body": null, "method": "GET", "ms": 1.373, "path": "/stock/COFFEE", "response": {"product_code": "COFFEE", "units_available": 30}, "status": 200}
+{"body": null, "method": "GET", "ms": 1.228, "path": "/stock/MISSING", "response": {"problem": {"kind": "PRODUCT_MISSING"}}, "status": 404}

@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools==80.9.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "parity-engine"
+version = "0.1.0"
+description = "Evidence-driven API compatibility and migration engine"
+requires-python = ">=3.11"
+dependencies = ["fastapi>=0.115,<1", "uvicorn>=0.32,<1", "httpx>=0.28,<1", "pydantic>=2.10,<3", "sqlalchemy>=2.0,<3", "psycopg[binary]>=3.2,<4"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8,<10", "hypothesis>=6,<7", "ruff>=0.9,<1", "mypy>=1.14,<2", "build>=1,<2"]
+
+[project.scripts]
+parity = "parity.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["parity*", "apps*"]
+
+[tool.setuptools.package-data]
+parity = ["report_template.html"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B"]
+ignore = ["E501", "B008"]
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
+check_untyped_defs = true

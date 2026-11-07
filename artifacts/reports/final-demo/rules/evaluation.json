@@ -1,0 +1,1621 @@
+{
+  "suite": "commerce",
+  "artifact_sha256": "7de4bb9b9966386f1b76165d9a63e03735fcf7ceb24e70ad7bdd2c63adab792b",
+  "checker_sha256": "ced160a5acf77588dc7e3a2f432b99b50d9efcdeb775653d0bb02239a38f955f",
+  "legacy_client_sha256": "e17922c1485237650f4665f24a4a6ec4920cd161c9b52114e030adaf9a851f5d",
+  "seed": 0,
+  "scenarios": [
+    {
+      "scenario": "ordinary",
+      "seed": 0,
+      "status": "fail",
+      "before": {
+        "v1": {
+          "inventory": {
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 30
+            },
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            }
+          }
+        },
+        "v2": {
+          "inventory": {
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 30
+            },
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            }
+          }
+        }
+      },
+      "mismatch": "AssertionError: checkout: HTTP status mismatch",
+      "actions": [
+        {
+          "action": "checkout",
+          "input": {
+            "method": "POST",
+            "path": "/checkout",
+            "query": "",
+            "body": {
+              "items": [
+                {
+                  "sku": "COFFEE",
+                  "quantity": 1
+                }
+              ],
+              "amount": 1250,
+              "payment_token": "ok"
+            }
+          },
+          "expected_status": 201,
+          "actual_status": 501,
+          "expected": {
+            "id": 1,
+            "status": "paid",
+            "amount": 1250,
+            "items": [
+              {
+                "sku": "COFFEE",
+                "quantity": 1
+              }
+            ]
+          },
+          "actual": {
+            "error": "NO_STATIC_OPERATION_MAPPING"
+          },
+          "v1_ms": 10.852,
+          "adapter_ms": 2.214
+        }
+      ],
+      "after": {
+        "v1": {
+          "inventory": {
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            },
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 29
+            }
+          },
+          "counters": {
+            "orders": 1
+          },
+          "orders": {
+            "1": {
+              "amount": 1250,
+              "id": 1,
+              "items": [
+                {
+                  "quantity": 1,
+                  "sku": "COFFEE"
+                }
+              ],
+              "status": "paid"
+            }
+          },
+          "payments": {
+            "charge:1": {
+              "amount": 1250,
+              "kind": "charge",
+              "order_id": 1
+            }
+          },
+          "requests": {
+            "cart-1": {
+              "fingerprint": "8e24a2d30a1ff7444ba8e104aeec830df3ef2f41efc38ff64d8ce31e23903fc3",
+              "id": 1
+            }
+          }
+        },
+        "v2": {
+          "inventory": {
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 30
+            },
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            }
+          }
+        }
+      },
+      "elapsed_ms": 1145.782
+    },
+    {
+      "scenario": "errors",
+      "seed": 0,
+      "status": "fail",
+      "before": {
+        "v1": {
+          "inventory": {
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 30
+            },
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            }
+          }
+        },
+        "v2": {
+          "inventory": {
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 30
+            },
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            }
+          }
+        }
+      },
+      "mismatch": "AssertionError: checkout: HTTP status mismatch",
+      "actions": [
+        {
+          "action": "checkout",
+          "input": {
+            "method": "POST",
+            "path": "/checkout",
+            "query": "",
+            "body": {
+              "items": [
+                {
+                  "sku": "MISSING",
+                  "quantity": 1
+                }
+              ],
+              "amount": 1250,
+              "payment_token": "ok"
+            }
+          },
+          "expected_status": 404,
+          "actual_status": 501,
+          "expected": {
+            "error": "UNKNOWN_SKU"
+          },
+          "actual": {
+            "error": "NO_STATIC_OPERATION_MAPPING"
+          },
+          "v1_ms": 17.59,
+          "adapter_ms": 5.272
+        }
+      ],
+      "after": {
+        "v1": {
+          "inventory": {
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 30
+            },
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            }
+          }
+        },
+        "v2": {
+          "inventory": {
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 30
+            },
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            }
+          }
+        }
+      },
+      "elapsed_ms": 2644.499
+    },
+    {
+      "scenario": "lost_response",
+      "seed": 0,
+      "status": "fail",
+      "before": {
+        "v1": {
+          "inventory": {
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 30
+            },
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            }
+          }
+        },
+        "v2": {
+          "inventory": {
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 30
+            },
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            }
+          }
+        }
+      },
+      "mismatch": "AssertionError: checkout: HTTP status mismatch",
+      "actions": [
+        {
+          "action": "checkout",
+          "input": {
+            "method": "POST",
+            "path": "/checkout",
+            "query": "",
+            "body": {
+              "items": [
+                {
+                  "sku": "COFFEE",
+                  "quantity": 1
+                }
+              ],
+              "amount": 1250,
+              "payment_token": "ok"
+            }
+          },
+          "expected_status": 201,
+          "actual_status": 501,
+          "expected": {
+            "id": 1,
+            "status": "paid",
+            "amount": 1250,
+            "items": [
+              {
+                "sku": "COFFEE",
+                "quantity": 1
+              }
+            ]
+          },
+          "actual": {
+            "error": "NO_STATIC_OPERATION_MAPPING"
+          },
+          "v1_ms": 1.654,
+          "adapter_ms": 1.137
+        }
+      ],
+      "after": {
+        "v1": {
+          "inventory": {
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            },
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 29
+            }
+          },
+          "counters": {
+            "orders": 1
+          },
+          "orders": {
+            "1": {
+              "amount": 1250,
+              "id": 1,
+              "items": [
+                {
+                  "quantity": 1,
+                  "sku": "COFFEE"
+                }
+              ],
+              "status": "paid"
+            }
+          },
+          "payments": {
+            "charge:1": {
+              "amount": 1250,
+              "kind": "charge",
+              "order_id": 1
+            }
+          },
+          "requests": {
+            "lost": {
+              "fingerprint": "8e24a2d30a1ff7444ba8e104aeec830df3ef2f41efc38ff64d8ce31e23903fc3",
+              "id": 1
+            }
+          }
+        },
+        "v2": {
+          "inventory": {
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 30
+            },
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            }
+          }
+        }
+      },
+      "elapsed_ms": 1463.017
+    },
+    {
+      "scenario": "payment_loss_restart",
+      "seed": 0,
+      "status": "fail",
+      "before": {
+        "v1": {
+          "inventory": {
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 30
+            },
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            }
+          }
+        },
+        "v2": {
+          "inventory": {
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 30
+            },
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            }
+          }
+        }
+      },
+      "mismatch": "AssertionError: ambiguous failure must be pending",
+      "actions": [
+        {
+          "action": "injected payment.after",
+          "actual_status": 501,
+          "actual": {
+            "error": "NO_STATIC_OPERATION_MAPPING"
+          },
+          "policy": "503 PENDING then retry the same key"
+        }
+      ],
+      "after": {
+        "v1": {
+          "inventory": {
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            },
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 29
+            }
+          },
+          "counters": {
+            "orders": 1
+          },
+          "orders": {
+            "1": {
+              "amount": 1250,
+              "id": 1,
+              "items": [
+                {
+                  "quantity": 1,
+                  "sku": "COFFEE"
+                }
+              ],
+              "status": "paid"
+            }
+          },
+          "payments": {
+            "charge:1": {
+              "amount": 1250,
+              "kind": "charge",
+              "order_id": 1
+            }
+          },
+          "requests": {
+            "payment_loss_restart": {
+              "fingerprint": "8e24a2d30a1ff7444ba8e104aeec830df3ef2f41efc38ff64d8ce31e23903fc3",
+              "id": 1
+            }
+          }
+        },
+        "v2": {
+          "inventory": {
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 30
+            },
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            }
+          }
+        }
+      },
+      "elapsed_ms": 1674.69
+    },
+    {
+      "scenario": "reserve_failure",
+      "seed": 0,
+      "status": "fail",
+      "before": {
+        "v1": {
+          "inventory": {
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 30
+            },
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            }
+          }
+        },
+        "v2": {
+          "inventory": {
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 30
+            },
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            }
+          }
+        }
+      },
+      "mismatch": "AssertionError: ambiguous failure must be pending",
+      "actions": [
+        {
+          "action": "injected reserve.before",
+          "actual_status": 501,
+          "actual": {
+            "error": "NO_STATIC_OPERATION_MAPPING"
+          },
+          "policy": "503 PENDING then retry the same key"
+        }
+      ],
+      "after": {
+        "v1": {
+          "inventory": {
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            },
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 29
+            }
+          },
+          "counters": {
+            "orders": 1
+          },
+          "orders": {
+            "1": {
+              "amount": 1250,
+              "id": 1,
+              "items": [
+                {
+                  "quantity": 1,
+                  "sku": "COFFEE"
+                }
+              ],
+              "status": "paid"
+            }
+          },
+          "payments": {
+            "charge:1": {
+              "amount": 1250,
+              "kind": "charge",
+              "order_id": 1
+            }
+          },
+          "requests": {
+            "reserve_failure": {
+              "fingerprint": "8e24a2d30a1ff7444ba8e104aeec830df3ef2f41efc38ff64d8ce31e23903fc3",
+              "id": 1
+            }
+          }
+        },
+        "v2": {
+          "inventory": {
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 30
+            },
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            }
+          }
+        }
+      },
+      "elapsed_ms": 2566.39
+    },
+    {
+      "scenario": "confirmation_loss",
+      "seed": 0,
+      "status": "fail",
+      "before": {
+        "v1": {
+          "inventory": {
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 30
+            },
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            }
+          }
+        },
+        "v2": {
+          "inventory": {
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 30
+            },
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            }
+          }
+        }
+      },
+      "mismatch": "AssertionError: ambiguous failure must be pending",
+      "actions": [
+        {
+          "action": "injected confirm.after",
+          "actual_status": 501,
+          "actual": {
+            "error": "NO_STATIC_OPERATION_MAPPING"
+          },
+          "policy": "503 PENDING then retry the same key"
+        }
+      ],
+      "after": {
+        "v1": {
+          "inventory": {
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            },
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 29
+            }
+          },
+          "counters": {
+            "orders": 1
+          },
+          "orders": {
+            "1": {
+              "amount": 1250,
+              "id": 1,
+              "items": [
+                {
+                  "quantity": 1,
+                  "sku": "COFFEE"
+                }
+              ],
+              "status": "paid"
+            }
+          },
+          "payments": {
+            "charge:1": {
+              "amount": 1250,
+              "kind": "charge",
+              "order_id": 1
+            }
+          },
+          "requests": {
+            "confirmation_loss": {
+              "fingerprint": "8e24a2d30a1ff7444ba8e104aeec830df3ef2f41efc38ff64d8ce31e23903fc3",
+              "id": 1
+            }
+          }
+        },
+        "v2": {
+          "inventory": {
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 30
+            },
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            }
+          }
+        }
+      },
+      "elapsed_ms": 1460.127
+    },
+    {
+      "scenario": "cancellation",
+      "seed": 0,
+      "status": "fail",
+      "before": {
+        "v1": {
+          "inventory": {
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 30
+            },
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            }
+          }
+        },
+        "v2": {
+          "inventory": {
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 30
+            },
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            }
+          }
+        }
+      },
+      "mismatch": "AssertionError: checkout: HTTP status mismatch",
+      "actions": [
+        {
+          "action": "checkout",
+          "input": {
+            "method": "POST",
+            "path": "/checkout",
+            "query": "",
+            "body": {
+              "items": [
+                {
+                  "sku": "COFFEE",
+                  "quantity": 1
+                }
+              ],
+              "amount": 1250,
+              "payment_token": "ok"
+            }
+          },
+          "expected_status": 201,
+          "actual_status": 501,
+          "expected": {
+            "id": 1,
+            "status": "paid",
+            "amount": 1250,
+            "items": [
+              {
+                "sku": "COFFEE",
+                "quantity": 1
+              }
+            ]
+          },
+          "actual": {
+            "error": "NO_STATIC_OPERATION_MAPPING"
+          },
+          "v1_ms": 19.689,
+          "adapter_ms": 4.505
+        }
+      ],
+      "after": {
+        "v1": {
+          "inventory": {
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            },
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 29
+            }
+          },
+          "counters": {
+            "orders": 1
+          },
+          "orders": {
+            "1": {
+              "amount": 1250,
+              "id": 1,
+              "items": [
+                {
+                  "quantity": 1,
+                  "sku": "COFFEE"
+                }
+              ],
+              "status": "paid"
+            }
+          },
+          "payments": {
+            "charge:1": {
+              "amount": 1250,
+              "kind": "charge",
+              "order_id": 1
+            }
+          },
+          "requests": {
+            "cancel": {
+              "fingerprint": "8e24a2d30a1ff7444ba8e104aeec830df3ef2f41efc38ff64d8ce31e23903fc3",
+              "id": 1
+            }
+          }
+        },
+        "v2": {
+          "inventory": {
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 30
+            },
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            }
+          }
+        }
+      },
+      "elapsed_ms": 2348.23
+    },
+    {
+      "scenario": "pagination",
+      "seed": 0,
+      "status": "fail",
+      "before": {
+        "v1": {
+          "inventory": {
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 30
+            },
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            }
+          }
+        },
+        "v2": {
+          "inventory": {
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 30
+            },
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            }
+          }
+        }
+      },
+      "mismatch": "AssertionError: checkout: HTTP status mismatch",
+      "actions": [
+        {
+          "action": "checkout",
+          "input": {
+            "method": "POST",
+            "path": "/checkout",
+            "query": "",
+            "body": {
+              "items": [
+                {
+                  "sku": "COFFEE",
+                  "quantity": 1
+                }
+              ],
+              "amount": 1250,
+              "payment_token": "declined"
+            }
+          },
+          "expected_status": 402,
+          "actual_status": 501,
+          "expected": {
+            "error": "PAYMENT_DECLINED"
+          },
+          "actual": {
+            "error": "NO_STATIC_OPERATION_MAPPING"
+          },
+          "v1_ms": 4.819,
+          "adapter_ms": 2.127
+        }
+      ],
+      "after": {
+        "v1": {
+          "inventory": {
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 30
+            },
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            }
+          }
+        },
+        "v2": {
+          "inventory": {
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 30
+            },
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            }
+          }
+        }
+      },
+      "elapsed_ms": 1260.183
+    },
+    {
+      "scenario": "concurrent_retry",
+      "seed": 0,
+      "status": "fail",
+      "before": {
+        "v1": {
+          "inventory": {
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 30
+            },
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            }
+          }
+        },
+        "v2": {
+          "inventory": {
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 30
+            },
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            }
+          }
+        }
+      },
+      "mismatch": "AssertionError: concurrent duplicate request failed",
+      "actions": [],
+      "after": {
+        "v1": {
+          "inventory": {
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            },
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 29
+            }
+          },
+          "counters": {
+            "orders": 1
+          },
+          "orders": {
+            "1": {
+              "amount": 1250,
+              "id": 1,
+              "items": [
+                {
+                  "quantity": 1,
+                  "sku": "COFFEE"
+                }
+              ],
+              "status": "paid"
+            }
+          },
+          "payments": {
+            "charge:1": {
+              "amount": 1250,
+              "kind": "charge",
+              "order_id": 1
+            }
+          },
+          "requests": {
+            "parallel": {
+              "fingerprint": "8e24a2d30a1ff7444ba8e104aeec830df3ef2f41efc38ff64d8ce31e23903fc3",
+              "id": 1
+            }
+          }
+        },
+        "v2": {
+          "inventory": {
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 30
+            },
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            }
+          }
+        }
+      },
+      "elapsed_ms": 1243.909
+    },
+    {
+      "scenario": "key_conflict",
+      "seed": 0,
+      "status": "fail",
+      "before": {
+        "v1": {
+          "inventory": {
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 30
+            },
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            }
+          }
+        },
+        "v2": {
+          "inventory": {
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 30
+            },
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            }
+          }
+        }
+      },
+      "mismatch": "AssertionError: checkout: HTTP status mismatch",
+      "actions": [
+        {
+          "action": "checkout",
+          "input": {
+            "method": "POST",
+            "path": "/checkout",
+            "query": "",
+            "body": {
+              "items": [
+                {
+                  "sku": "COFFEE",
+                  "quantity": 1
+                }
+              ],
+              "amount": 1250,
+              "payment_token": "ok"
+            }
+          },
+          "expected_status": 201,
+          "actual_status": 501,
+          "expected": {
+            "id": 1,
+            "status": "paid",
+            "amount": 1250,
+            "items": [
+              {
+                "sku": "COFFEE",
+                "quantity": 1
+              }
+            ]
+          },
+          "actual": {
+            "error": "NO_STATIC_OPERATION_MAPPING"
+          },
+          "v1_ms": 5.755,
+          "adapter_ms": 2.216
+        }
+      ],
+      "after": {
+        "v1": {
+          "inventory": {
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            },
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 29
+            }
+          },
+          "counters": {
+            "orders": 1
+          },
+          "orders": {
+            "1": {
+              "amount": 1250,
+              "id": 1,
+              "items": [
+                {
+                  "quantity": 1,
+                  "sku": "COFFEE"
+                }
+              ],
+              "status": "paid"
+            }
+          },
+          "payments": {
+            "charge:1": {
+              "amount": 1250,
+              "kind": "charge",
+              "order_id": 1
+            }
+          },
+          "requests": {
+            "conflict": {
+              "fingerprint": "8e24a2d30a1ff7444ba8e104aeec830df3ef2f41efc38ff64d8ce31e23903fc3",
+              "id": 1
+            }
+          }
+        },
+        "v2": {
+          "inventory": {
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 30
+            },
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            }
+          }
+        }
+      },
+      "elapsed_ms": 1145.065
+    },
+    {
+      "scenario": "compensation_retry",
+      "seed": 0,
+      "status": "fail",
+      "before": {
+        "v1": {
+          "inventory": {
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 30
+            },
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            }
+          }
+        },
+        "v2": {
+          "inventory": {
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 30
+            },
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            }
+          }
+        }
+      },
+      "mismatch": "AssertionError: failed compensation must stay pending",
+      "actions": [],
+      "after": {
+        "v1": {
+          "inventory": {
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 30
+            },
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            }
+          }
+        },
+        "v2": {
+          "inventory": {
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 30
+            },
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            }
+          }
+        }
+      },
+      "elapsed_ms": 1346.764
+    },
+    {
+      "scenario": "compensation_loss_restart",
+      "seed": 0,
+      "status": "fail",
+      "before": {
+        "v1": {
+          "inventory": {
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 30
+            },
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            }
+          }
+        },
+        "v2": {
+          "inventory": {
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 30
+            },
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            }
+          }
+        }
+      },
+      "mismatch": "AssertionError: failed compensation must stay pending",
+      "actions": [],
+      "after": {
+        "v1": {
+          "inventory": {
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 30
+            },
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            }
+          }
+        },
+        "v2": {
+          "inventory": {
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 30
+            },
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            }
+          }
+        }
+      },
+      "elapsed_ms": 1149.826
+    },
+    {
+      "scenario": "cancel_loss_restart",
+      "seed": 0,
+      "status": "fail",
+      "before": {
+        "v1": {
+          "inventory": {
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 30
+            },
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            }
+          }
+        },
+        "v2": {
+          "inventory": {
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 30
+            },
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            }
+          }
+        }
+      },
+      "mismatch": "AssertionError: checkout: HTTP status mismatch",
+      "actions": [
+        {
+          "action": "checkout",
+          "input": {
+            "method": "POST",
+            "path": "/checkout",
+            "query": "",
+            "body": {
+              "items": [
+                {
+                  "sku": "COFFEE",
+                  "quantity": 1
+                }
+              ],
+              "amount": 1250,
+              "payment_token": "ok"
+            }
+          },
+          "expected_status": 201,
+          "actual_status": 501,
+          "expected": {
+            "id": 1,
+            "status": "paid",
+            "amount": 1250,
+            "items": [
+              {
+                "sku": "COFFEE",
+                "quantity": 1
+              }
+            ]
+          },
+          "actual": {
+            "error": "NO_STATIC_OPERATION_MAPPING"
+          },
+          "v1_ms": 7.729,
+          "adapter_ms": 2.316
+        }
+      ],
+      "after": {
+        "v1": {
+          "inventory": {
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            },
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 29
+            }
+          },
+          "counters": {
+            "orders": 1
+          },
+          "orders": {
+            "1": {
+              "amount": 1250,
+              "id": 1,
+              "items": [
+                {
+                  "quantity": 1,
+                  "sku": "COFFEE"
+                }
+              ],
+              "status": "paid"
+            }
+          },
+          "payments": {
+            "charge:1": {
+              "amount": 1250,
+              "kind": "charge",
+              "order_id": 1
+            }
+          },
+          "requests": {
+            "cancel-loss": {
+              "fingerprint": "8e24a2d30a1ff7444ba8e104aeec830df3ef2f41efc38ff64d8ce31e23903fc3",
+              "id": 1
+            }
+          }
+        },
+        "v2": {
+          "inventory": {
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 30
+            },
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            }
+          }
+        }
+      },
+      "elapsed_ms": 1254.919
+    },
+    {
+      "scenario": "rejected_key_reuse",
+      "seed": 0,
+      "status": "fail",
+      "before": {
+        "v1": {
+          "inventory": {
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 30
+            },
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            }
+          }
+        },
+        "v2": {
+          "inventory": {
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 30
+            },
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            }
+          }
+        }
+      },
+      "mismatch": "AssertionError: checkout: HTTP status mismatch",
+      "actions": [
+        {
+          "action": "checkout",
+          "input": {
+            "method": "POST",
+            "path": "/checkout",
+            "query": "",
+            "body": {
+              "items": [
+                {
+                  "sku": "COFFEE",
+                  "quantity": 1
+                }
+              ],
+              "amount": 1250,
+              "payment_token": "declined"
+            }
+          },
+          "expected_status": 402,
+          "actual_status": 501,
+          "expected": {
+            "error": "PAYMENT_DECLINED"
+          },
+          "actual": {
+            "error": "NO_STATIC_OPERATION_MAPPING"
+          },
+          "v1_ms": 4.84,
+          "adapter_ms": 2.181
+        }
+      ],
+      "after": {
+        "v1": {
+          "inventory": {
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 30
+            },
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            }
+          }
+        },
+        "v2": {
+          "inventory": {
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 30
+            },
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            }
+          }
+        }
+      },
+      "elapsed_ms": 1149.688
+    },
+    {
+      "scenario": "error_precedence",
+      "seed": 0,
+      "status": "fail",
+      "before": {
+        "v1": {
+          "inventory": {
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 30
+            },
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            }
+          }
+        },
+        "v2": {
+          "inventory": {
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 30
+            },
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            }
+          }
+        }
+      },
+      "mismatch": "AssertionError: checkout: HTTP status mismatch",
+      "actions": [
+        {
+          "action": "checkout",
+          "input": {
+            "method": "POST",
+            "path": "/checkout",
+            "query": "",
+            "body": {
+              "items": [
+                {
+                  "sku": "COFFEE",
+                  "quantity": 99
+                }
+              ],
+              "amount": 1,
+              "payment_token": "ok"
+            }
+          },
+          "expected_status": 409,
+          "actual_status": 501,
+          "expected": {
+            "error": "OUT_OF_STOCK"
+          },
+          "actual": {
+            "error": "NO_STATIC_OPERATION_MAPPING"
+          },
+          "v1_ms": 3.892,
+          "adapter_ms": 4.193
+        }
+      ],
+      "after": {
+        "v1": {
+          "inventory": {
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 30
+            },
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            }
+          }
+        },
+        "v2": {
+          "inventory": {
+            "COFFEE": {
+              "price": 1250,
+              "sku": "COFFEE",
+              "stock": 30
+            },
+            "TEA": {
+              "price": 750,
+              "sku": "TEA",
+              "stock": 20
+            }
+          }
+        }
+      },
+      "elapsed_ms": 1349.757
+    }
+  ],
+  "passed": 0,
+  "total": 15,
+  "replay": "parity validate --adapter artifacts/reports/final-demo/rules-artifact --suite commerce"
+}

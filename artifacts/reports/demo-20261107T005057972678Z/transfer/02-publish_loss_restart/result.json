@@ -1,0 +1,63 @@
+{
+  "scenario": "publish_loss_restart",
+  "seed": 0,
+  "status": "pass",
+  "isolation": "macOS Seatbelt; explicit read roots; loopback upstream only",
+  "actions": [
+    {
+      "expected_status": 201,
+      "actual_status": 201,
+      "expected": {
+        "title": "Login broken",
+        "body": "Cannot sign in",
+        "id": 1,
+        "status": "open"
+      },
+      "actual": {
+        "id": 1,
+        "title": "Login broken",
+        "body": "Cannot sign in",
+        "status": "open"
+      }
+    }
+  ],
+  "after": {
+    "v1": {
+      "counters": {
+        "tickets": 1
+      },
+      "tickets": {
+        "1": {
+          "body": "Cannot sign in",
+          "id": 1,
+          "status": "open",
+          "title": "Login broken"
+        }
+      },
+      "requests": {
+        "ticket": {
+          "digest": "3ebda7598abf0359e562ea7ddeaaf8194459623f358dac138088f3393039a036",
+          "id": 1
+        }
+      }
+    },
+    "v2": {
+      "requests": {
+        "ticket": {
+          "id": "57368c35-fdc2-4fb9-994c-dd404de54597",
+          "summary": "Login broken"
+        }
+      },
+      "issues": {
+        "57368c35-fdc2-4fb9-994c-dd404de54597": {
+          "comments": [
+            "Cannot sign in"
+          ],
+          "ref": "57368c35-fdc2-4fb9-994c-dd404de54597",
+          "state": "open",
+          "summary": "Login broken"
+        }
+      }
+    }
+  }
+}

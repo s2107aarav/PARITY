@@ -1,0 +1,105 @@
+.venv/bin/ruff check parity apps scripts tests
+All checks passed!
+.venv/bin/ruff format --check parity apps scripts tests
+unformatted: File would be reformatted
+   --> scripts/package_release.py:11:12
+    |
+10  | ROOT = Path(__file__).resolve().parents[1]
+    - EXCLUDE = {".git", ".venv", ".parity", "__pycache__", ".pytest_cache", ".mypy_cache",
+    -            ".ruff_cache", ".hypothesis", "build", "dist"}
+11  + EXCLUDE = {
+12  +     ".git",
+13  +     ".venv",
+14  +     ".parity",
+15  +     "__pycache__",
+16  +     ".pytest_cache",
+17  +     ".mypy_cache",
+18  +     ".ruff_cache",
+19  +     ".hypothesis",
+20  +     "build",
+21  +     "dist",
+22  + }
+23  |
+--------------------------------------------------------------------------------
+33  |     text = text.replace(str(Path.home()), "<LOCAL_HOME>")
+    -     text = re.sub(r'("(?:thread_id|account_id|user_id|hostname)"\s*:\s*")[^"]*(")', r'\1[REDACTED]\2', text)
+34  +     text = re.sub(
+35  +         r'("(?:thread_id|account_id|user_id|hostname)"\s*:\s*")[^"]*(")', r"\1[REDACTED]\2", text
+36  +     )
+37  |     text = re.sub(r'hostname="[^"]*"', 'hostname="[REDACTED]"', text)
+    -     text = re.sub(r'\b[A-Za-z0-9_-]+\.local\b', '[LOCAL_HOST]', text)
+38  +     text = re.sub(r"\b[A-Za-z0-9_-]+\.local\b", "[LOCAL_HOST]", text)
+39  |     return text.encode("utf-8")
+--------------------------------------------------------------------------------
+44  |     redactions = []
+    -     secrets = re.compile(rb'sk-[A-Za-z0-9_-]{32,}|-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----')
+45  +     secrets = re.compile(
+46  +         rb"sk-[A-Za-z0-9_-]{32,}|-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----"
+47  +     )
+48  |     count = 0
+--------------------------------------------------------------------------------
+54  |                 relative = path.relative_to(ROOT)
+    -                 if path.suffix in {".zip", ".pyc", ".db"} or name.endswith((".db-shm", ".db-wal")) or name in {".env", ".DS_Store", "adapter.lock"}:
+55  +                 if (
+56  +                     path.suffix in {".zip", ".pyc", ".db"}
+57  +                     or name.endswith((".db-shm", ".db-wal"))
+58  +                     or name in {".env", ".DS_Store", "adapter.lock"}
+59  +                 ):
+60  |                     continue
+    -                 if "worker" in relative.parts and name not in {"http.jsonl", "resources.json", "termination.json"}:
+61  +                 if "worker" in relative.parts and name not in {
+62  +                     "http.jsonl",
+63  +                     "resources.json",
+64  +                     "termination.json",
+65  +                 }:
+66  |                     continue
+67  |                 raw = path.read_bytes()
+68  |                 if secrets.search(raw):
+    -                     raise RuntimeError(f"credential pattern detected in {relative}; no value printed")
+69  +                     raise RuntimeError(
+70  +                         f"credential pattern detected in {relative}; no value printed"
+71  +                     )
+72  |                 public = public_bytes(path)
+73  |                 if public != raw:
+    -                     redactions.append({"path": str(relative), "private_sha256": hashlib.sha256(raw).hexdigest(),
+    -                                        "public_sha256": hashlib.sha256(public).hexdigest()})
+74  +                     redactions.append(
+75  +                         {
+76  +                             "path": str(relative),
+77  +                             "private_sha256": hashlib.sha256(raw).hexdigest(),
+78  +                             "public_sha256": hashlib.sha256(public).hexdigest(),
+79  +                         }
+80  +                     )
+81  |                 archive.writestr("PARITY/" + relative.as_posix(), public)
+82  |                 count += 1
+    -         archive.writestr("PARITY/REDACTIONS.json", json.dumps({"policy": "Local home paths, hostnames and provider thread/account identifiers redacted in public copies only. Generated Python source and plans retained byte-for-byte. Raw historical evidence remains in the private workspace/archive; redacted transcript hashes intentionally differ.", "files": redactions}, indent=2))
+83  +         archive.writestr(
+84  +             "PARITY/REDACTIONS.json",
+85  +             json.dumps(
+86  +                 {
+87  +                     "policy": "Local home paths, hostnames and provider thread/account identifiers redacted in public copies only. Generated Python source and plans retained byte-for-byte. Raw historical evidence remains in the private workspace/archive; redacted transcript hashes intentionally differ.",
+88  +                     "files": redactions,
+89  +                 },
+90  +                 indent=2,
+91  +             ),
+92  +         )
+93  |     with zipfile.ZipFile(output) as archive:
+94  |         assert archive.testzip() is None
+    -     print(json.dumps({"archive": output.name, "files": count, "redacted_files": len(redactions),
+    -                       "bytes": output.stat().st_size, "sha256": hashlib.sha256(output.read_bytes()).hexdigest()}))
+95  +     print(
+96  +         json.dumps(
+97  +             {
+98  +                 "archive": output.name,
+99  +                 "files": count,
+100 +                 "redacted_files": len(redactions),
+101 +                 "bytes": output.stat().st_size,
+102 +                 "sha256": hashlib.sha256(output.read_bytes()).hexdigest(),
+103 +             }
+104 +         )
+105 +     )
+106 |
+    |
+
+1 file would be reformatted, 41 files already formatted
+make: *** [check] Error 1
