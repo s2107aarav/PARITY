@@ -117,6 +117,19 @@ def check_effects(case):
     assert "authorization" not in project.workflows(source)[0]["request"]["headers"]
 
 
+@pytest.mark.parametrize("scenario_passes,expected", [(False, "not_checked"), (True, "failed")])
+def test_effect_report_distinguishes_skipped_and_failed_checks(project, scenario_passes, expected):
+    project.root.joinpath("scenarios.py").write_text(f"""def test_workflow(case):
+    assert {scenario_passes!r}, "workflow failed before business checks"
+def check_effects(case):
+    raise AssertionError("business invariant failed")
+""")
+    result = project.validate()
+    assert result["passed"] == 0
+    assert result["business_effects"] == expected
+    assert result["scenarios"][0]["business_effects"] == expected
+
+
 def test_pending_request_can_be_inspected_and_retried(project):
     source = adapter(project)
     project.test_servers[1].app.state.lose = True

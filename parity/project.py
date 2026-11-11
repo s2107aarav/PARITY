@@ -300,6 +300,7 @@ class Project:
                         module.setup(case)
                     test(case)
                     if effects:
+                        row["business_effects"] = "failed"
                         module.check_effects(case)
                         row["business_effects"] = "passed"
                     row["status"] = "pass"
@@ -320,12 +321,18 @@ class Project:
                                 status="fail", mismatch=f"teardown: {type(exc).__name__}: {exc}"
                             )
                 rows.append(row)
+        effect_results = {row["business_effects"] for row in rows}
+        effect_status = "not_checked"
+        if "passed" in effect_results:
+            effect_status = "checked" if effect_results == {"passed"} else "partial"
+        if "failed" in effect_results:
+            effect_status = "failed"
         result = {
             "project": self.settings.name,
             "passed": sum(row["status"] == "pass" for row in rows),
             "total": len(rows),
             "scenarios": rows,
-            "business_effects": "checked" if effects else "not_checked",
+            "business_effects": effect_status,
             "coverage": "only declared scenarios and invariants",
             "adapter_sha256": digest(Path(adapter)) if adapter else None,
             "scenarios_sha256": digest(self.root / self.settings.scenarios),
