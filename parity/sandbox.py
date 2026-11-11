@@ -11,10 +11,11 @@ import signal
 import socket
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 from pathlib import Path
-from typing import TextIO
+from typing import Any, TextIO
 
 import httpx
 
@@ -60,7 +61,21 @@ def check_source(source: str):
         if isinstance(node, ast.Attribute) and (
             node.attr.startswith("_")
             or node.attr
-            in {"store", "http", "engine", "connection", "base", "trace", "local", "thread_lock"}
+            in {
+                "store",
+                "http",
+                "engine",
+                "connection",
+                "base",
+                "trace",
+                "local",
+                "thread_lock",
+                "request_scope",
+                "record_request",
+                "record_result",
+                "import_ids",
+                "close",
+            }
         ):
             raise ValueError("plugin accesses private capability")
     if not any(isinstance(x, ast.FunctionDef) and x.name == "handle" for x in tree.body):
@@ -128,7 +143,9 @@ def resident_bytes(pid: int) -> int:
 
 
 class AdapterProcess:
-    def __init__(self, source: Path, upstream: str, root: Path, *, trusted=False):
+    def __init__(
+        self, source: Path, upstream: str, root: Path, *, trusted=False, trace_bodies=True
+    ):
         check_source(source.read_text())
         self.root = root.resolve()
         self.root.mkdir(parents=True, exist_ok=True)
@@ -141,9 +158,31 @@ class AdapterProcess:
         shutil.copyfile(source, self.root / "adapter.py")
         self.port = free_port()
         self.url = f"http://127.0.0.1:{self.port}"
-        (self.root / "config.json").write_text(
-            json.dumps({"upstream": upstream, "port": self.port})
-        )
+        self.relays: list[Any] = []
+        self.sockets = None
+        config = {"upstream": upstream, "port": self.port, "trace_bodies": trace_bodies}
+        if sys.platform.startswith("linux") and shutil.which("bwrap"):
+            from parity.relay import relay_app
+            from parity.serving import Server
+
+            self.sockets = tempfile.TemporaryDirectory(prefix="parity-sockets-", dir="/tmp")
+            socket_root = Path(self.sockets.name)
+            config["upstream_socket"] = str(socket_root / "upstream")
+            config["listen_socket"] = str(socket_root / "worker")
+            try:
+                self.relays.append(
+                    Server(relay_app(upstream), socket_path=config["upstream_socket"])
+                )
+                self.relays.append(
+                    Server(relay_app("http://worker", socket_path=config["listen_socket"]))
+                )
+                self.url = self.relays[-1].url
+            except BaseException:
+                for relay in self.relays:
+                    relay.close()
+                self.sockets.cleanup()
+                raise
+        (self.root / "config.json").write_text(json.dumps(config))
         self.trusted = trusted
         self.proc: subprocess.Popen | None = None
         self.log: TextIO | None = None
@@ -200,6 +239,7 @@ class AdapterProcess:
                 "--unshare-pid",
                 "--unshare-ipc",
                 "--unshare-uts",
+                "--unshare-net",
                 "--ro-bind",
                 "/usr",
                 "/usr",
@@ -221,9 +261,9 @@ class AdapterProcess:
                 if Path(path).exists() and not path.startswith("/usr/"):
                     args += ["--ro-bind", path, path]
             args += ["--bind", str(self.root), str(self.root), "--chdir", str(self.root)]
-            self.isolation = (
-                "bubblewrap filesystem/pid isolation; host network (residual limitation)"
-            )
+            if self.sockets:
+                args += ["--bind", self.sockets.name, self.sockets.name]
+            self.isolation = "bubblewrap filesystem/pid/network isolation; Unix-socket HTTP relay"
             return [*args, *cmd]
         if not self.trusted:
             raise WorkerFailure(
@@ -278,11 +318,13 @@ class AdapterProcess:
                         return
                     reason = "resource_monitor_unavailable"
                 if reason:
-                    (self.root / "termination.json").write_text(json.dumps({"reason": reason}))
                     try:
-                        os.killpg(proc.pid, signal.SIGKILL)
-                    except ProcessLookupError:
-                        pass
+                        (self.root / "termination.json").write_text(json.dumps({"reason": reason}))
+                    finally:
+                        try:
+                            os.killpg(proc.pid, signal.SIGKILL)
+                        except ProcessLookupError:
+                            pass
                     return
 
         self.monitor_thread = threading.Thread(target=monitor, daemon=True)
@@ -315,14 +357,17 @@ class AdapterProcess:
             raise WorkerFailure(f"worker infrastructure/resource failure: {reason}")
 
     def restart(self):
-        self.close()
+        self.close(keep_relays=True)
+        config = json.loads((self.root / "config.json").read_text())
+        if config.get("listen_socket"):
+            Path(config["listen_socket"]).unlink(missing_ok=True)
         try:
             self.start()
         except BaseException:
             self.close()
             raise
 
-    def close(self):
+    def close(self, *, keep_relays=False):
         self.monitor_stop.set()
         if self.monitor_thread:
             self.monitor_thread.join(timeout=3)
@@ -343,3 +388,14 @@ class AdapterProcess:
             self.proc.wait()
         if self.log:
             self.log.close()
+        if not keep_relays:
+            for relay in self.relays:
+                relay.close()
+            self.relays.clear()
+            if self.sockets:
+                self.sockets.cleanup()
+
+    def kill(self):
+        if self.proc and self.proc.poll() is None:
+            os.killpg(self.proc.pid, signal.SIGKILL)
+            self.proc.wait()

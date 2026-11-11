@@ -1,12 +1,10 @@
 import json
-from pathlib import Path
 
 import pytest
 
 from parity.agent import Agent, ToolCall
 from parity.providers import ProviderUnavailable
-
-ROOT = Path(__file__).resolve().parents[2]
+from parity.resources import examples
 
 
 class Unavailable:
@@ -20,7 +18,7 @@ class Malformed:
 
 
 def agent(tmp_path, provider):
-    base = ROOT / "contracts/transfer"
+    base = examples() / "contracts/transfer"
     return Agent(
         base / "v1.json",
         base / "v2.json",

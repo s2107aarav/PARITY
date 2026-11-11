@@ -104,6 +104,11 @@ class CodexProvider:
                     raise ProviderUnavailable(
                         "model request timed out; trajectory retained"
                     ) from exc
+                except BaseException:
+                    if proc.poll() is None:
+                        os.killpg(proc.pid, signal.SIGKILL)
+                        proc.wait()
+                    raise
             usage = None
             for line in (directory / "events.jsonl").read_text().splitlines():
                 try:

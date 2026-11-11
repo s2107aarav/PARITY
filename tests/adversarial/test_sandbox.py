@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from apps.commerce_v2 import create_app
+from parity.resources import examples
 from parity.sandbox import AdapterProcess
 from parity.serving import Server
 
@@ -20,12 +21,12 @@ def test_real_os_boundary_denies_checker_reference_and_home(tmp_path):
     assert credential.read_text() == '{"token": "test-only-canary"}'
     service = Server(create_app(str(tmp_path / "v2.db")))
     worker = AdapterProcess(
-        ROOT / "artifacts/reference/commerce/adapter.py", service.url, tmp_path / "worker"
+        examples() / "artifacts/reference/commerce/adapter.py", service.url, tmp_path / "worker"
     )
     try:
         protected = [
             ROOT / "parity/replay.py",
-            ROOT / "artifacts/reference/commerce/adapter.py",
+            examples() / "artifacts/reference/commerce/adapter.py",
             credential,
         ]
         # Harmless trusted canary program uses the EXACT worker OS policy, outside AST filtering.

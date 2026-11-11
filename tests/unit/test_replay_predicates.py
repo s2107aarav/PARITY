@@ -1,10 +1,10 @@
-from pathlib import Path
 from unittest.mock import MagicMock
 
 import httpx
 import pytest
 
 from parity.replay import Replay
+from parity.resources import examples
 
 
 @pytest.mark.parametrize("scenario", ["payment_loss_restart", "concurrent_retry"])
@@ -29,7 +29,7 @@ def test_recovery_and_concurrency_reject_invalid_legacy_ids(scenario, candidate_
 def test_transfer_checker_rejects_changed_id_on_retrieval(tmp_path):
     from parity.transfer_replay import evaluate
 
-    reference = Path(__file__).resolve().parents[2] / "artifacts/reference/transfer/adapter.py"
+    reference = examples() / "artifacts/reference/transfer/adapter.py"
     source = tmp_path / "unstable.py"
     source.write_text(
         reference.read_text()

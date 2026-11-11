@@ -60,14 +60,49 @@ class MigrationPlan(Strict):
 
 
 def validate_plan(plan: MigrationPlan, old: dict, new: dict):
-    from parity.contracts import operations, resolve_pointer
+    import re
+
+    from parity.contracts import operations, payload_fields, resolve_pointer
 
     left, right = operations(old), operations(new)
+    seen = set()
     for mapping in plan.mappings:
         if mapping.legacy_operation not in left or any(
             x not in right for x in mapping.target_operations
         ):
             raise ValueError("plan names an operation absent from contracts")
+        if mapping.legacy_operation in seen:
+            raise ValueError("duplicate legacy operation mapping")
+        seen.add(mapping.legacy_operation)
+
+        def fields(operation):
+            return (
+                set(payload_fields(operation, "request"))
+                | set(payload_fields(operation, "response"))
+                | {parameter["name"] for parameter in operation.get("parameters", [])}
+            )
+
+        old_fields = fields(left[mapping.legacy_operation])
+        new_fields = set().union(*(fields(right[name]) for name in mapping.target_operations))
+        roots = {
+            name.split(" ", 1)[1].strip("/").split("/")[0] for name in mapping.target_operations
+        }
+        for source_field, target in mapping.field_mappings.items():
+            if target.split(".", 1)[0] in roots and "." in target:
+                target = target.split(".", 1)[1]
+            pairs = [(source_field, old_fields)]
+            target_schema_known = any(
+                payload_fields(right[name], "request") or payload_fields(right[name], "response")
+                for name in mapping.target_operations
+            )
+            if target_schema_known and source_field not in {"status", "state", "phase"}:
+                pairs.append((target, new_fields))
+            for field, available in pairs:
+                if (
+                    re.fullmatch(r"[A-Za-z_]\w*(?:\[\])?(?:\.[A-Za-z_]\w*(?:\[\])?)*", field)
+                    and field not in available
+                ):
+                    raise ValueError(f"unknown mapped field: {field}")
         for source in mapping.evidence:
             if source.document in {"old", "new"}:
                 resolve_pointer(old if source.document == "old" else new, source.pointer)

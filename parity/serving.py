@@ -8,17 +8,17 @@ import uvicorn
 
 
 class Server:
-    def __init__(self, app):
+    def __init__(self, app, *, socket_path=None):
         self.app = app
-        self.socket = socket.socket()
-        self.socket.bind(("127.0.0.1", 0))
-        self.port = self.socket.getsockname()[1]
-        self.url = f"http://127.0.0.1:{self.port}"
+        self.socket = socket.socket(socket.AF_UNIX if socket_path else socket.AF_INET)
+        self.socket.bind(str(socket_path) if socket_path else ("127.0.0.1", 0))
+        self.port = None if socket_path else self.socket.getsockname()[1]
+        self.url = "http://localhost" if socket_path else f"http://127.0.0.1:{self.port}"
         self.server = uvicorn.Server(
             uvicorn.Config(
                 app,
                 host="127.0.0.1",
-                port=self.port,
+                port=self.port or 0,
                 log_level="error",
                 access_log=False,
                 timeout_keep_alive=1,

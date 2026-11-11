@@ -1,4 +1,0 @@
-{"body": null, "call_sequence": 1, "method": "GET", "ms": 4.21, "path": "/stock/COFFEE", "response": {"product_code": "COFFEE", "units_available": 30}, "status": 200, "trace_id": "c3e102889fb44627a8e1ac1549500ac4"}
-{"body": null, "call_sequence": 1, "method": "GET", "ms": 1.511, "path": "/stock/MISSING", "response": {"problem": {"kind": "PRODUCT_MISSING"}}, "status": 404, "trace_id": "21c0a0fd48184538aa8f3a249bac8093"}
-{"body": null, "call_sequence": 1, "method": "GET", "ms": 1.33, "path": "/stock/COFFEE", "response": {"product_code": "COFFEE", "units_available": 30}, "status": 200, "trace_id": "eafb37a2ff9a4ba3aa5b0397cb904839"}
-{"body": {"lines": [{"product_code": "COFFEE", "units": 1}], "total_minor": 1}, "call_sequence": 2, "method": "POST", "ms": 1.809, "path": "/orders", "response": {"problem": {"kind": "BAD_TOTAL"}}, "status": 422, "trace_id": "eafb37a2ff9a4ba3aa5b0397cb904839"}

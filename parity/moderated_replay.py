@@ -6,12 +6,16 @@ from pathlib import Path
 import httpx
 
 from apps.moderated import LegacyTicketClient, new_app, old_app
+from parity.comparison import compare_json, validate_response
+from parity.contracts import load
+from parity.resources import examples
 from parity.sandbox import AdapterProcess, digest
 from parity.serving import Server
 
 
 def evaluate(source: Path, output: Path):
     output.mkdir(parents=True, exist_ok=False)
+    contract = load(examples() / "contracts/moderated/v1.json")
     results = []
     for scenario in (
         "ordinary",
@@ -44,11 +48,13 @@ def evaluate(source: Path, output: Path):
                     expected=expected.json(), actual=actual.json(), actual_status=actual.status_code
                 )
                 assert actual.status_code == expected.status_code == 201
+                validate_response(contract, "POST", "/tickets", expected)
+                validate_response(contract, "POST", "/tickets", actual)
                 x, y = expected.json(), actual.json()
                 assert type(y["id"]) is int and y["id"] > 0
                 x["id"] = y["id"]
-                assert x == y
-                assert candidate.create().json() == y
+                compare_json(x, y)
+                compare_json(y, candidate.create().json())
                 if scenario == "key_conflict":
                     assert (
                         candidate.create(body="changed").status_code

@@ -12,6 +12,9 @@ from apps.commerce_v1 import create_app as v1_app
 from apps.commerce_v2 import create_app as v2_app
 from apps.common import CATALOG
 from apps.legacy_client import LegacyClient
+from parity.comparison import compare_json, validate_response
+from parity.contracts import load
+from parity.resources import examples
 from parity.sandbox import AdapterProcess, WorkerFailure, digest
 from parity.serving import Server
 
@@ -109,6 +112,7 @@ class Replay:
         self.ids: dict[int, int] = {}
         self.events: list[dict] = []
         self.last: dict | None = None
+        self.contract = load(examples() / "contracts/commerce/v1.json")
 
     def pair(self, name, old_call, new_call):
         start = time.perf_counter()
@@ -135,9 +139,13 @@ class Replay:
         }
         self.events.append(self.last)
         assert expected.status_code == actual.status_code, f"{name}: HTTP status mismatch"
+        for response in (expected, actual):
+            validate_response(
+                self.contract, response.request.method, response.request.url.path, response
+            )
         if isinstance(expected_data, dict) and "id" in expected_data:
             self.record_id(expected_data["id"], actual_data.get("id"))
-        assert self.normalize(expected_data) == actual_data, f"{name}: semantic response mismatch"
+        compare_json(self.normalize(expected_data), actual_data)
         return expected_data, actual_data
 
     def record_id(self, expected_id, candidate_id):
@@ -225,7 +233,7 @@ class Replay:
             assert expected.status_code == actual.status_code == 201, "retry failed to recover"
             a, b = expected.json(), actual.json()
             self.record_id(a["id"], b.get("id"))
-            assert self.normalize(a) == b, "recovered order differs"
+            compare_json(self.normalize(a), b)
         elif scenario == "cancellation":
             a, b = self.checkout(key="cancel")
             for _ in range(2):
@@ -256,7 +264,7 @@ class Replay:
                 "adapter unstable concurrent results"
             )
             self.record_id(old[0].json()["id"], new[0].json().get("id"))
-            assert self.normalize(old[0].json()) == new[0].json()
+            compare_json(self.normalize(old[0].json()), new[0].json())
             self.events.append(
                 {"action": "six concurrent duplicate checkouts", "status": "matched"}
             )

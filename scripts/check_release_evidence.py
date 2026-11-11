@@ -2,13 +2,13 @@
 
 import hashlib
 import json
-from pathlib import Path
 
+from parity.resources import examples
 from parity.sandbox import digest
 
 
 def main():
-    root = Path("artifacts/generated")
+    root = examples() / "artifacts/generated"
     outputs = set()
     for response in root.glob("*/calls/*/response.json"):
         data = json.loads(response.read_text())

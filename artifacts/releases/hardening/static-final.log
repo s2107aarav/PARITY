@@ -1,6 +1,0 @@
-.venv/bin/ruff check parity apps scripts tests
-All checks passed!
-.venv/bin/ruff format --check parity apps scripts tests
-43 files already formatted
-.venv/bin/mypy parity apps
-Success: no issues found in 28 source files

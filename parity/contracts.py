@@ -12,6 +12,7 @@ def load(path: Path) -> dict:
         not isinstance(value, dict)
         or not str(value.get("openapi", "")).startswith("3.")
         or not isinstance(value.get("paths"), dict)
+        or not isinstance(value.get("info"), dict)
     ):
         raise ValueError("expected an OpenAPI 3.x JSON document with paths")
     return value
@@ -116,6 +117,22 @@ def payload_fields(operation, section):
 def analyze(old: dict, new: dict):
     left, right = operations(old), operations(new)
     changes = []
+    for section in ("security", "servers"):
+        if old.get(section) != new.get(section):
+            changes.append(
+                {
+                    "kind": section + "_changed",
+                    "operation": "*",
+                    "before": old.get(section),
+                    "after": new.get(section),
+                    "impact": "review",
+                    "certainty": "static",
+                    "evidence": [
+                        {"document": "old", "pointer": "#/" + section},
+                        {"document": "new", "pointer": "#/" + section},
+                    ],
+                }
+            )
     for name, op in left.items():
         match = (
             name
@@ -186,7 +203,7 @@ def analyze(old: dict, new: dict):
                         "certainty": "static",
                     }
                 )
-        for section in ("requestBody", "responses", "parameters"):
+        for section in ("requestBody", "responses", "parameters", "security", "servers"):
             a, b = old_op.get(section), new_op.get(section)
             if a != b:
                 entry = {

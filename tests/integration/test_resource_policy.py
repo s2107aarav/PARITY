@@ -5,16 +5,15 @@ import pytest
 
 from apps.commerce_v2 import create_app
 from parity.replay import evaluate
+from parity.resources import examples
 from parity.sandbox import RESOURCE_POLICY, AdapterProcess, WorkerFailure
 from parity.serving import Server
-
-ROOT = Path(__file__).resolve().parents[2]
 
 
 @pytest.mark.parametrize("repeat", range(3))
 def test_sandboxed_concurrency_and_recovery(tmp_path, repeat):
     report = evaluate(
-        ROOT / "artifacts/generated/commerce-live-002/adapter.py",
+        examples() / "artifacts/generated/commerce-live-002/adapter.py",
         tmp_path,
         scenarios=("concurrent_retry", "payment_loss_restart"),
     )
@@ -24,7 +23,7 @@ def test_sandboxed_concurrency_and_recovery(tmp_path, repeat):
 def test_worker_limit_failure_is_not_business_success(tmp_path, monkeypatch):
     server = Server(create_app(str(tmp_path / "service.db")))
     worker = AdapterProcess(
-        ROOT / "artifacts/reference/commerce/adapter.py", server.url, tmp_path / "worker"
+        examples() / "artifacts/reference/commerce/adapter.py", server.url, tmp_path / "worker"
     )
     try:
         wall_seconds = RESOURCE_POLICY["wall_seconds"]
@@ -48,7 +47,7 @@ def test_no_sandbox_fails_closed(tmp_path, monkeypatch):
     monkeypatch.setattr(sandbox.shutil, "which", lambda _: None)
     with pytest.raises(RuntimeError, match="Refusing untrusted"):
         AdapterProcess(
-            ROOT / "artifacts/reference/commerce/adapter.py", "http://127.0.0.1:1", tmp_path
+            examples() / "artifacts/reference/commerce/adapter.py", "http://127.0.0.1:1", tmp_path
         )
     assert not (tmp_path / "worker.log").exists()
 
@@ -73,6 +72,6 @@ def test_spawn_failure_closes_worker_log(tmp_path, monkeypatch):
     monkeypatch.setattr(sandbox.subprocess, "Popen", failed_spawn)
     with pytest.raises(WorkerFailure, match="test spawn failure"):
         AdapterProcess(
-            ROOT / "artifacts/reference/commerce/adapter.py", "http://127.0.0.1:1", tmp_path
+            examples() / "artifacts/reference/commerce/adapter.py", "http://127.0.0.1:1", tmp_path
         )
     assert len(opened) == 1 and opened[0].closed

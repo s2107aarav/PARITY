@@ -11,6 +11,7 @@ dist/
 .env
 .DS_Store
 .parity/
+artifacts/reports/
 *.db
 *.db-*
 # Runtime bundles are copied from pinned engine/source files; keep trials' actual JSON traces.

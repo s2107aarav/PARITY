@@ -1,19 +1,17 @@
 import json
-from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
 
 from parity.contracts import analyze, load, operations, resolve, resolve_pointer
 from parity.plans import MigrationPlan, validate_plan
+from parity.resources import examples
 from parity.sandbox import check_source
 from parity.usage import has_output_tokens
 
-ROOT = Path(__file__).resolve().parents[2]
-
 
 def test_real_contract_delta_includes_semantic_uncertainty():
-    old, new = (load(ROOT / "contracts/commerce" / x) for x in ("v1.json", "v2.json"))
+    old, new = (load(examples() / "contracts/commerce" / x) for x in ("v1.json", "v2.json"))
     delta = analyze(old, new)
     removed = [x["operation"] for x in delta["changes"] if x["kind"] == "removed_operation"]
     assert "POST /checkout" in removed
@@ -32,7 +30,7 @@ def test_external_refs_rejected():
 def test_plan_rejects_cycles_and_unknown_fields():
     with pytest.raises(ValidationError):
         MigrationPlan.model_validate({"schema_version": 1, "revision": 1, "hidden_override": True})
-    value = json.loads((ROOT / "artifacts/generated/commerce-live-002/plan.json").read_text())
+    value = json.loads((examples() / "artifacts/generated/commerce-live-002/plan.json").read_text())
     value["workflow"][0]["depends_on"] = [value["workflow"][0]["name"]]
     with pytest.raises(ValidationError, match="dependency order"):
         MigrationPlan.model_validate(value)
@@ -65,6 +63,8 @@ def test_explicit_field_and_required_deltas():
     [
         "import os\ndef handle(*args): return os.environ",
         "def handle(ctx, *args): return ctx.http.get('x')",
+        "def handle(ctx, *args): return ctx.request_scope()",
+        "def handle(ctx, *args): return ctx.record_result('key', 'completed')",
         "def handle(*args): return open('/etc/passwd').read()",
         "def handle(*args): return (1).__class__",
         "from parity.runtime import Store\ndef handle(*args): return 200, {}",
@@ -80,7 +80,7 @@ def test_source_capability_filter(source):
 
 
 def test_shipped_generation_has_real_provenance():
-    path = ROOT / "artifacts/generated/commerce-live-001"
+    path = examples() / "artifacts/generated/commerce-live-001"
     manifest = json.loads((path / "manifest.json").read_text())
     assert manifest["provenance"] == "real-authenticated-model-run"
     assert (path / "plan.json").is_file() and (path / "adapter.py").is_file()
@@ -138,10 +138,10 @@ def test_reference_siblings_and_nested_arrays_are_retained():
 
 
 def test_plan_evidence_can_point_into_parameter_array():
-    base = ROOT / "contracts/transfer"
+    base = examples() / "contracts/transfer"
     old, new = load(base / "v1.json"), load(base / "v2.json")
     plan = MigrationPlan.model_validate_json(
-        (ROOT / "artifacts/generated/transfer-live-001/plan.json").read_text()
+        (examples() / "artifacts/generated/transfer-live-001/plan.json").read_text()
     )
     evidence = plan.mappings[0].evidence[0]
     evidence.document = "old"

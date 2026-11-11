@@ -7,6 +7,7 @@ from pathlib import Path
 from apps.commerce_v1 import create_app as commerce_v1
 from apps.commerce_v2 import create_app as commerce_v2
 from apps.transfer import create_v1, create_v2
+from parity.resources import examples
 
 
 def main():
@@ -48,7 +49,7 @@ def main():
                                 "description": "Business error; see notes.md for operation-specific codes",
                                 "content": {"application/json": {"schema": error_schema}},
                             }
-                target = Path("contracts") / domain / f"v{version}.json"
+                target = examples() / "contracts" / domain / f"v{version}.json"
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_text(json.dumps(doc, indent=2) + "\n")
                 app.state.store.close()

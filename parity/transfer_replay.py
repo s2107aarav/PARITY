@@ -7,6 +7,9 @@ from pathlib import Path
 import httpx
 
 from apps.transfer import create_v1, create_v2
+from parity.comparison import compare_json, validate_response
+from parity.contracts import load
+from parity.resources import examples
 from parity.sandbox import AdapterProcess, WorkerFailure, digest
 from parity.serving import Server
 
@@ -17,6 +20,7 @@ def evaluate(source: Path, output: Path, *, trusted=False):
     output.mkdir(parents=True, exist_ok=True)
     results = []
     checker_hash = digest(Path(__file__))
+    contract = load(examples() / "contracts/transfer/v1.json")
     for index, scenario in enumerate(SCENARIOS):
         root = output / f"{index:02d}-{scenario}"
         root.mkdir()
@@ -47,6 +51,10 @@ def evaluate(source: Path, output: Path, *, trusted=False):
                         }
                     )
                     assert a.status_code == b.status_code, "HTTP mismatch"
+                    for response in (a, b):
+                        validate_response(
+                            contract, response.request.method, response.request.url.path, response
+                        )
                     expected, actual = a.json(), b.json()
                     if "id" in expected:
                         assert type(actual.get("id")) is int and actual["id"] > 0
@@ -59,7 +67,7 @@ def evaluate(source: Path, output: Path, *, trusted=False):
                         ), "aliased ticket IDs"
                         ids[old_id] = new_id
                         expected["id"] = new_id
-                    assert expected == actual, "semantic response mismatch"
+                    compare_json(expected, actual)
 
                 if scenario == "publish_loss_restart":
                     expected = post(left)

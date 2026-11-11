@@ -21,7 +21,7 @@ demo:
 	$(PARITY) demo --artifact commerce-live-002
 
 demo-live:
-	$(PARITY) generate --old contracts/commerce/v1.json --new contracts/commerce/v2.json --provider codex
+	$(PARITY) generate --old parity/examples/contracts/commerce/v1.json --new parity/examples/contracts/commerce/v2.json --provider codex
 
 contracts:
 	$(PY) scripts/export_contracts.py

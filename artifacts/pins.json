@@ -5,18 +5,18 @@
   "seed": 0,
   "files": {
     "apps/legacy_client.py": "e17922c1485237650f4665f24a4a6ec4920cd161c9b52114e030adaf9a851f5d",
-    "parity/replay.py": "25b9b11b30a403c4b86c75feb086e874267c9bf7d463f15641c43dc8d10f498f",
-    "parity/transfer_replay.py": "2bdf3ef471912ba1a0e360441c78c56c22335f49ff7a38c4437178d09212acbc",
-    "artifacts/generated/commerce-live-001/adapter.py": "6156d576adf406f650976d4b496623fbaefb98b9f8921a79e6477bf2322e7aba",
-    "artifacts/generated/commerce-live-002/adapter.py": "18fd24438d8cda806a9c90762ead58510540c4b3401b616b11a4e208624132ee",
-    "artifacts/generated/commerce-live-002/plan.json": "b70adf4ad8d884f3ac4456ef10a9aa7af72c3044141824337e7b2218bee9326f",
-    "artifacts/generated/transfer-live-001/adapter.py": "3b0a0df089be488c3ea31042ec65acf8007a6ec8122f639e763c6dd0f759e659",
-    "artifacts/generated/transfer-live-001/plan.json": "bd8189e3a3430296385b52378ec7594a08c70010d670aca3efd79ba1fe90ea5f",
-    "parity/runtime.py": "76bb0c4feda1e9ce095ff6e51cf45eb09fc9acc7d44498dd983ea13b7196773b",
+    "parity/replay.py": "cd2d5ccebd1ece706919bd9b0db050ceb2463a249819d85120795547ce7fb5f6",
+    "parity/transfer_replay.py": "d53e69104fc252f89458def37206703debdd23de8da58104a6d1bc741fd95108",
+    "parity/examples/artifacts/generated/commerce-live-001/adapter.py": "6156d576adf406f650976d4b496623fbaefb98b9f8921a79e6477bf2322e7aba",
+    "parity/examples/artifacts/generated/commerce-live-002/adapter.py": "18fd24438d8cda806a9c90762ead58510540c4b3401b616b11a4e208624132ee",
+    "parity/examples/artifacts/generated/commerce-live-002/plan.json": "b70adf4ad8d884f3ac4456ef10a9aa7af72c3044141824337e7b2218bee9326f",
+    "parity/examples/artifacts/generated/transfer-live-001/adapter.py": "3b0a0df089be488c3ea31042ec65acf8007a6ec8122f639e763c6dd0f759e659",
+    "parity/examples/artifacts/generated/transfer-live-001/plan.json": "bd8189e3a3430296385b52378ec7594a08c70010d670aca3efd79ba1fe90ea5f",
+    "parity/runtime.py": "1887520d007079cfed98196059c3eb98f9c2235a87c6ebd02b1598144b7bba30",
     "parity/storage.py": "84bd0038aae41abb801d98b7853c5925948ae535e47ee86f6150d3453f5a11e4",
-    "parity/worker.py": "4149465d3ff3044449257c3eb35bfefc131311b52ad98228abb17fa5df39c71a",
-    "parity/agent.py": "32fd3f1e032420bd2ce54874cf962df5beea68157ade0263c7836bb343da6ca1",
-    "parity/plans.py": "05aee10bcf9c88546f79c5b1585603e11d1f652c598b4740be2bf6a124408ff4",
-    "parity/contracts.py": "0ee6909825ab9738127058cf7022ee35d0168f291e1e489beacbe53230464451"
+    "parity/worker.py": "15568bdeeac2f4ce40c00ffa2be52d28b7915648f91ba57f42d4fb89264f9e6c",
+    "parity/agent.py": "f2cb9464429cf4e45c854eb9b763c7f7b905a970eeaf079507faa256aa8ceef2",
+    "parity/plans.py": "58c275d353901a3aaf979cb4e31150d6d2989bc8c496e0db408ea8239a1fa017",
+    "parity/contracts.py": "618a0da2447e1bfbed2339eea467ed643fbda0d51a2f3901edf6db7df5a8a2ab"
   }
 }

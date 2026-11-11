@@ -9,6 +9,7 @@ from pathlib import Path
 from sqlalchemy import create_engine
 
 from parity.replay import Replay
+from parity.resources import examples, workspace
 from parity.sandbox import free_port
 
 
@@ -59,7 +60,7 @@ def main():
                 conn.exec_driver_sql("CREATE DATABASE parity_v2")
             engine.dispose()
             replay = Replay(
-                Path("artifacts/generated/commerce-live-001/adapter.py"),
+                examples() / "artifacts/generated/commerce-live-001/adapter.py",
                 root / "replay",
                 old_database=url + "parity_v1",
                 new_database=url + "parity_v2",
@@ -86,7 +87,7 @@ def main():
             if replay:
                 replay.close()
             subprocess.run([*base, "stop", "-m", "fast"], check=False, capture_output=True)
-    output = Path("artifacts/reports/postgres-verification.json")
+    output = workspace() / "reports/postgres-verification.json"
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(result, indent=2))
     print(json.dumps(result, indent=2))

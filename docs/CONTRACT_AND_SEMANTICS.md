@@ -1,6 +1,6 @@
 # Contract and semantics
 
-Machine-readable schemas come from the real FastAPI applications and are exported into `contracts/{commerce,transfer}/v{1,2}.json` as OpenAPI 3.1. Public notes supplement what schemas cannot express. `make contracts` regenerates the schemas; it does not reset live databases.
+The bundled schemas live under `parity/examples/contracts/{commerce,transfer}/v{1,2}.json` and come from the FastAPI applications as OpenAPI 3.1. Notes supplement what schemas cannot express. `make contracts` regenerates these examples; it does not reset databases. User-owned contracts and scenarios are described in [Projects](PROJECTS.md).
 
 ## Commerce V1
 

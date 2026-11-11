@@ -17,15 +17,18 @@ from parity.agent import Agent
 from parity.baselines import rules_adapter
 from parity.contracts import analyze, load
 from parity.fixtures import FIXTURES
+from parity.moderated_replay import evaluate as evaluate_moderated
 from parity.oneshot import generate as single_shot_generate
+from parity.project import Project, initialize
 from parity.providers import CodexProvider, OpenAIProvider
 from parity.replay import SCENARIOS, evaluate
 from parity.report import render
+from parity.resources import examples, workspace
 from parity.sandbox import digest
 from parity.serving import Server
 from parity.transfer_replay import evaluate as evaluate_transfer
 
-PROJECT = Path(__file__).resolve().parent.parent
+PROJECT = examples()
 
 
 def artifact_path(value: str):
@@ -46,8 +49,8 @@ def artifact_path(value: str):
 
 def fresh_output(prefix):
     return (
-        PROJECT
-        / "artifacts/reports"
+        workspace()
+        / "reports"
         / (prefix + "-" + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ"))
     )
 
@@ -168,7 +171,8 @@ def demo(artifact, output, transfer_artifact=None, single_shot_artifact=None):
         ],
     )
     latest = str(output.relative_to(PROJECT)) if output.is_relative_to(PROJECT) else str(output)
-    (PROJECT / "artifacts/reports/LATEST").write_text(latest + "\n")
+    (workspace() / "reports").mkdir(parents=True, exist_ok=True)
+    (workspace() / "reports/LATEST").write_text(latest + "\n")
     print(f"Report: {output / 'index.html'}", flush=True)
     print(data["summary"]["status"], flush=True)
     healthy = [x["report"] for x in evidence if x["role"] in {"parity", "reference", "transfer"}]
@@ -183,14 +187,24 @@ def parser():
         prog="parity", description="Contract → plan → adapter → independent evidence"
     )
     sub = result.add_subparsers(dest="command", required=True)
+    init = sub.add_parser("init", help="Create a staging project configuration and scenario")
+    init.add_argument("directory", type=Path, nargs="?", default=Path.cwd())
+    init.add_argument("--example", choices=["tickets"])
+    doctor = sub.add_parser(
+        "doctor", help="Check project inputs, credentials and scenarios without network calls"
+    )
+    doctor.add_argument("--project", type=Path, default=Path("parity.json"))
     inspect = sub.add_parser("inspect", help="Print conservative OpenAPI delta JSON")
-    inspect.add_argument("--old", type=Path, required=True)
-    inspect.add_argument("--new", type=Path, required=True)
+    inspect.add_argument("--old", type=Path)
+    inspect.add_argument("--new", type=Path)
+    inspect.add_argument("--project", type=Path)
+    inspect.add_argument("--format", choices=["text", "json"], default="text")
     generate = sub.add_parser(
         "generate", help="Make real authenticated model calls; never replays a transcript"
     )
-    generate.add_argument("--old", type=Path, required=True)
-    generate.add_argument("--new", type=Path, required=True)
+    generate.add_argument("--old", type=Path)
+    generate.add_argument("--new", type=Path)
+    generate.add_argument("--project", type=Path)
     generate.add_argument("--notes", type=Path)
     generate.add_argument("--provider", choices=["codex", "openai"], default="codex")
     generate.add_argument("--model", default=os.getenv("PARITY_MODEL"))
@@ -199,8 +213,11 @@ def parser():
     generate.add_argument("--strategy", choices=["agent", "single-shot"], default="agent")
     generate.add_argument("--resume-artifact")
     validate = sub.add_parser("validate", help="Independent differential workflow checker")
-    validate.add_argument("--adapter", required=True)
-    validate.add_argument("--suite", choices=["commerce", "transfer"], default="commerce")
+    validate.add_argument("--adapter")
+    validate.add_argument("--project", type=Path)
+    validate.add_argument(
+        "--suite", choices=["commerce", "transfer", "moderated"], default="commerce"
+    )
     validate.add_argument("--out", type=Path)
     play = sub.add_parser(
         "demo", help="Offline replay with provenance, controls, baselines and HTML report"
@@ -219,15 +236,51 @@ def parser():
     serve.add_argument("--db", required=True)
     serve.add_argument("--port", type=int, required=True)
     serve.add_argument("--host", default="127.0.0.1")
+    for name in ("status", "retry"):
+        command = sub.add_parser(name, help="Inspect or retry a recorded adapter workflow")
+        command.add_argument("--project", type=Path, default=Path("parity.json"))
+        command.add_argument("--adapter", required=True)
+        if name == "retry":
+            command.add_argument("--request", required=True)
     return result
 
 
 def main():
     args = parser().parse_args()
     try:
-        if args.command == "inspect":
-            print(json.dumps(analyze(load(args.old), load(args.new)), indent=2))
+        project = Project(args.project) if getattr(args, "project", None) else None
+        if args.command == "init":
+            print(
+                f"Created {initialize(args.directory, example=args.example)}. Run parity doctor --project {args.directory / 'parity.json'} to check the project."
+            )
+        elif args.command == "doctor":
+            assert project is not None
+            print(json.dumps(project.doctor(), indent=2))
+        elif args.command == "inspect":
+            if not project and (not args.old or not args.new):
+                raise ValueError("use --project or both --old and --new")
+            delta = (
+                analyze(project.old, project.new)
+                if project
+                else analyze(load(args.old), load(args.new))
+            )
+            if args.format == "json":
+                print(json.dumps(delta, indent=2))
+            else:
+                print(
+                    f"{len(delta['changes'])} changes; {len(delta['added_operations'])} added operations"
+                )
+                for change in delta["changes"]:
+                    print(f"  {change['operation']}: {change['kind']} {change.get('field', '')}")
+                print("Behavioral compatibility requires scenario validation.")
         elif args.command == "generate":
+            if project:
+                project.doctor()
+                args.old = project.root / project.settings.old.schema_path
+                args.new = project.root / project.settings.new.schema_path
+                args.notes = project.root / project.settings.notes
+            elif not args.old or not args.new:
+                raise ValueError("use --project or both --old and --new")
             if args.provider == "openai" and not args.model:
                 raise ValueError("--model is required for the OpenAI provider")
             provider = (
@@ -235,7 +288,7 @@ def main():
                 if args.provider == "codex"
                 else OpenAIProvider(args.model)
             )
-            out = args.out or PROJECT / "artifacts/generated" / (
+            out = args.out or (project.workspace if project else workspace()) / "generated" / (
                 "live-" + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
             )
             if args.strategy == "single-shot":
@@ -250,9 +303,11 @@ def main():
                     provider,
                     out,
                     max_calls=args.max_calls,
+                    project=project,
                 )
                 if args.resume_artifact:
-                    agent.resume(artifact_path(args.resume_artifact))
+                    parent = Path(args.resume_artifact)
+                    agent.resume(parent if parent.exists() else artifact_path(args.resume_artifact))
                 manifest = agent.run()
             print(json.dumps(manifest, indent=2))
             if manifest.get("status") == "generation_rejected":
@@ -260,11 +315,30 @@ def main():
             if args.strategy == "agent" and manifest["status"] != "public_validation_passed":
                 raise SystemExit(2)
         elif args.command == "validate":
+            if project:
+                source = artifact_path(args.adapter) / "adapter.py" if args.adapter else None
+                report = project.validate(source, args.out)
+                print(
+                    f"{report['passed']}/{report['total']} scenarios passed; business effects: {report['business_effects']}"
+                )
+                for row in report["scenarios"]:
+                    if row["status"] != "pass":
+                        print(f"  FAIL {row['scenario']}: {row.get('mismatch')}")
+                print(f"Report: {report['report']}")
+                if report["passed"] != report["total"]:
+                    raise SystemExit(1)
+                return
+            if not args.adapter:
+                raise ValueError("--adapter is required without --project")
             artifact = artifact_path(args.adapter)
-            fn = evaluate if args.suite == "commerce" else evaluate_transfer
+            fn = {
+                "commerce": evaluate,
+                "transfer": evaluate_transfer,
+                "moderated": evaluate_moderated,
+            }[args.suite]
             report = fn(artifact / "adapter.py", args.out or fresh_output(args.suite))
             print(
-                f"{report['passed']}/{report['total']} passed; source SHA256 {report['artifact_sha256']}"
+                f"{report['passed']}/{report['total']} passed; source SHA256 {report.get('artifact_sha256', report.get('source_sha256'))}"
             )
             for scenario in report["scenarios"]:
                 if scenario["status"] != "pass":
@@ -283,6 +357,19 @@ def main():
         elif args.command == "serve":
             factory = getattr(FIXTURES[args.suite], args.version)
             uvicorn.run(factory(args.db), host=args.host, port=args.port, log_level="info")
+        elif args.command == "status":
+            assert project is not None
+            source = artifact_path(args.adapter) / "adapter.py"
+            for row in project.workflows(source):
+                print(
+                    f"{row['id']} {row['status']} {row['stage']} HTTP {row.get('http_status', '?')}"
+                )
+        elif args.command == "retry":
+            assert project is not None
+            result = project.retry(artifact_path(args.adapter) / "adapter.py", args.request)
+            print(json.dumps(result, indent=2))
+            if result["status"] >= 400:
+                raise SystemExit(1)
     except (ValueError, RuntimeError, OSError) as exc:
         print(f"PARITY: {exc}")
         raise SystemExit(2) from exc

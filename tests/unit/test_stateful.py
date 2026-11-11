@@ -54,3 +54,43 @@ TestLedger = LedgerMachine.TestCase
 TestLedger.settings = settings(
     max_examples=12, stateful_step_count=25, deadline=None, derandomize=True
 )
+
+
+class AdapterLedgerMachine(RuleBasedStateMachine):
+    def __init__(self):
+        super().__init__()
+        from parity.replay import Replay
+        from parity.resources import examples
+
+        self.temp = tempfile.TemporaryDirectory()
+        self.replay = Replay(
+            examples() / "artifacts/generated/commerce-live-002/adapter.py", Path(self.temp.name)
+        )
+        self.orders = {}
+
+    @rule(key=integers(min_value=0, max_value=4))
+    def checkout_or_retry(self, key):
+        old, new = self.replay.checkout(key=str(key))
+        self.orders[key] = (old["id"], new["id"])
+
+    @rule(key=integers(min_value=0, max_value=4))
+    def cancel(self, key):
+        if key in self.orders:
+            old, new = self.orders[key]
+            self.replay.pair(
+                "cancel", lambda: self.replay.old.cancel(old), lambda: self.replay.new.cancel(new)
+            )
+
+    @invariant()
+    def effects_match(self):
+        self.replay.verify_state()
+
+    def teardown(self):
+        self.replay.close()
+        self.temp.cleanup()
+
+
+TestAdapterLedger = AdapterLedgerMachine.TestCase
+TestAdapterLedger.settings = settings(
+    max_examples=4, stateful_step_count=12, deadline=None, derandomize=True
+)

@@ -5,6 +5,7 @@ import pytest
 
 from parity.cli import artifact_path
 from parity.replay import SCENARIOS, evaluate
+from parity.resources import examples
 from parity.transfer_replay import evaluate as evaluate_transfer
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -31,10 +32,12 @@ def test_pinned_generated_transfer(tmp_path):
 def test_pins_are_exact_and_old_failure_is_preserved():
     from parity.sandbox import digest
 
-    pins = json.loads((ROOT / "artifacts/pins.json").read_text())
+    pins = json.loads((Path(__file__).resolve().parents[2] / "artifacts/pins.json").read_text())
     for relative, expected in pins["files"].items():
-        assert digest(ROOT / relative) == expected, f"immutable evidence changed: {relative}"
-    first = ROOT / "artifacts/generated/commerce-live-002/public-v1/public-result.json"
-    revised = ROOT / "artifacts/generated/commerce-live-002/public-v2/public-result.json"
+        assert digest(Path(__file__).resolve().parents[2] / relative) == expected, (
+            f"immutable evidence changed: {relative}"
+        )
+    first = examples() / "artifacts/generated/commerce-live-002/public-v1/public-result.json"
+    revised = examples() / "artifacts/generated/commerce-live-002/public-v2/public-result.json"
     assert json.loads(first.read_text())["passed"] is False
     assert json.loads(revised.read_text())["passed"] is True

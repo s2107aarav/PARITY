@@ -1,5 +1,0 @@
-{"type":"thread.started","thread_id":"01a1b34d-1a64-7dc2-9fd9-2fd4b4af37e0"}
-{"type":"item.completed","item":{"id":"item_0","type":"error","message":"Code Mode is unavailable because code-mode host is disabled. Code mode will fail closed; enable `features.code_mode_host` and install `codex-code-mode-host`."}}
-{"type":"turn.started"}
-{"type":"item.completed","item":{"id":"item_1","type":"agent_message","text":"{\"tool\":\"inspect_contract\",\"arguments\":\"{\\\"document\\\":\\\"delta\\\"}\",\"reason\":\"Confirm operation and schema differences before planning the migration.\"}"}}
-{"type":"turn.completed","usage":{"input_tokens":16348,"cached_input_tokens":9216,"cache_write_input_tokens":0,"output_tokens":38,"reasoning_output_tokens":0}}

@@ -1,13 +1,11 @@
 import json
-from pathlib import Path
 
 import httpx
 import pytest
 
 from parity.agent import Agent
 from parity.providers import OpenAIProvider
-
-ROOT = Path(__file__).resolve().parents[2]
+from parity.resources import examples
 
 
 @pytest.mark.parametrize("status", [401, 429, 503])
@@ -22,7 +20,7 @@ def test_http_provider_failure_stops_agent_and_preserves_response(tmp_path, monk
         return response
 
     monkeypatch.setattr(httpx, "post", post)
-    base = ROOT / "contracts/transfer"
+    base = examples() / "contracts/transfer"
     agent = Agent(
         base / "v1.json",
         base / "v2.json",
