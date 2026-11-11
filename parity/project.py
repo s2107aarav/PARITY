@@ -377,6 +377,18 @@ class Project:
         if not record or record["status"] != "pending":
             raise ValueError("request must identify a pending workflow")
         request = record["request"]
+        path = request.get("path", "")
+        if (
+            request.get("method") not in {"POST", "PUT", "PATCH", "DELETE"}
+            or not path.startswith("/")
+            or path.startswith("//")
+            or "://" in path
+            or any(
+                name not in {"idempotency-key", "content-type", "if-match", "if-none-match"}
+                for name in request.get("headers", {})
+            )
+        ):
+            raise ValueError("recorded workflow contains an invalid replay request")
         if not request["headers"].get("idempotency-key"):
             raise ValueError("replay requires the original Idempotency-Key")
         with ExitStack() as stack:

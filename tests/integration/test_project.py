@@ -129,6 +129,27 @@ def test_pending_request_can_be_inspected_and_retried(project):
     assert len(project.test_servers[1].app.state.items) == 1
 
 
+def test_retry_rejects_a_tampered_request_target(project, monkeypatch):
+    source = adapter(project)
+    monkeypatch.setattr(
+        project,
+        "workflows",
+        lambda _: [
+            {
+                "id": "invalid",
+                "status": "pending",
+                "request": {
+                    "method": "POST",
+                    "path": "https://other.example/items",
+                    "headers": {"idempotency-key": "key"},
+                },
+            }
+        ],
+    )
+    with pytest.raises(ValueError, match="invalid replay request"):
+        project.retry(source, "invalid")
+
+
 def test_worker_preserves_empty_text_headers_and_repeated_query(project, tmp_path):
     source = adapter(project)
     worker = AdapterProcess(source, project.test_servers[1].url, tmp_path / "worker")
