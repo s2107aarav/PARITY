@@ -110,7 +110,7 @@ def _limits():
     resource.setrlimit(resource.RLIMIT_FSIZE, (32 * 1024 * 1024, 32 * 1024 * 1024))
     if sys.platform.startswith("linux"):
         # AS includes interpreter mappings and reserved pthread stacks, not just live memory.
-        ceiling = RESOURCE_POLICY["linux_address_space_bytes"]
+        ceiling = int(RESOURCE_POLICY["linux_address_space_bytes"])
         resource.setrlimit(resource.RLIMIT_AS, (ceiling, ceiling))
 
 
