@@ -45,6 +45,11 @@ def redact(value):
     return value
 
 
+def _is_json_media_type(value):
+    media = value.split(";", 1)[0].strip().lower()
+    return media == "application/json" or media.endswith("+json")
+
+
 class Context:
     """Capabilities: bounded upstream HTTP, durable JSON and identifier correspondence.
 
@@ -114,7 +119,10 @@ class Context:
         start = time.perf_counter()
         response_headers = {}
         try:
-            response = self.http.request(method, path, json=body, headers=headers, params=query)
+            request = httpx.Request(
+                method, self.http.base_url.join(path), json=body, headers=headers, params=query
+            )
+            response = self.http.send(request)
             status = response.status_code
             response_headers = {
                 k: v
@@ -124,11 +132,19 @@ class Context:
             }
             if not response.content:
                 data = None
-            else:
+                if status not in (204, 304):
+                    response_headers["content-length"] = (
+                        response.headers.get("content-length", "0")
+                        if method.upper() == "HEAD"
+                        else "0"
+                    )
+            elif _is_json_media_type(response.headers.get("content-type", "")):
                 try:
                     data = response.json()
                 except ValueError:
                     data = response.text
+            else:
+                data = response.text
         except httpx.HTTPError:
             data, status = {"problem": {"kind": "TEMPORARY"}}, 503
         event = {
@@ -186,6 +202,8 @@ class Context:
             tx.put("workflows", key, value)
 
     def import_ids(self, mappings):
+        if not isinstance(mappings, dict):
+            raise ValueError("ID mappings must be a JSON object")
         with self.store.transaction() as tx:
             normalized = {int(key): value for key, value in mappings.items()}
             if (

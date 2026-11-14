@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools==80.9.0"]
+requires = ["setuptools==84.1.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -10,7 +10,7 @@ requires-python = ">=3.11"
 dependencies = ["fastapi>=0.115,<1", "uvicorn>=0.32,<1", "httpx>=0.28,<1", "pydantic>=2.10,<3", "sqlalchemy>=2.0,<3", "psycopg[binary]>=3.2,<4", "jsonschema>=4.23,<5"]
 
 [project.optional-dependencies]
-dev = ["pytest>=8,<10", "hypothesis>=6,<7", "ruff>=0.9,<1", "mypy>=1.14,<2", "build>=1,<2"]
+dev = ["pytest>=8,<10", "hypothesis>=6,<7", "ruff>=0.9,<1", "mypy>=1.14,<2", "build>=1,<2", "httpx2>=2,<3"]
 
 [project.scripts]
 parity = "parity.cli:main"
@@ -20,6 +20,9 @@ include = ["parity*", "apps*"]
 
 [tool.setuptools.package-data]
 parity = ["report_template.html", "examples/**/*"]
+
+[tool.setuptools.exclude-package-data]
+"*" = ["**/__pycache__/*", "**/*.pyc"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

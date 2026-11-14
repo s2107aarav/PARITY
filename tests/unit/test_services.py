@@ -1,3 +1,4 @@
+import pytest
 from fastapi.testclient import TestClient
 
 from apps.commerce_v1 import create_app as v1
@@ -57,6 +58,26 @@ def test_storage_transaction_rolls_back(tmp_path):
         pass
     assert store.snapshot() == {}
     store.close()
+
+
+@pytest.mark.parametrize("filename", ["state?old.db", "state#copy.db", "state%20copy.db"])
+def test_database_paths_preserve_literal_filename_characters(tmp_path, filename):
+    from parity.storage import Store
+
+    path = tmp_path / filename
+    store = Store(str(path))
+    try:
+        with store.transaction() as tx:
+            tx.put("example", "key", {"value": 1})
+        assert path.is_file()
+    finally:
+        store.close()
+    reopened = Store(str(path))
+    try:
+        assert reopened.snapshot()["example"]["key"] == {"value": 1}
+    finally:
+        reopened.close()
+    assert [entry.name for entry in tmp_path.iterdir()] == [filename]
 
 
 def test_payment_retry_binds_every_successful_key(tmp_path):

@@ -281,6 +281,8 @@ def main():
                 args.notes = project.root / project.settings.notes
             elif not args.old or not args.new:
                 raise ValueError("use --project or both --old and --new")
+            if args.strategy == "single-shot" and args.resume_artifact:
+                raise ValueError("--resume-artifact requires --strategy agent")
             if args.provider == "openai" and not args.model:
                 raise ValueError("--model is required for the OpenAI provider")
             provider = (

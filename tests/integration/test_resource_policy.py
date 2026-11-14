@@ -75,3 +75,25 @@ def test_spawn_failure_closes_worker_log(tmp_path, monkeypatch):
             examples() / "artifacts/reference/commerce/adapter.py", "http://127.0.0.1:1", tmp_path
         )
     assert len(opened) == 1 and opened[0].closed
+
+
+def test_linux_rss_includes_descendants_after_process_group_changes(tmp_path, monkeypatch):
+    import parity.sandbox as sandbox
+
+    proc = tmp_path / "proc"
+    for pid, parent, group, rss in (
+        (100, 1, 100, 1),
+        (101, 100, 101, 2),
+        (102, 101, 102, 3),
+        (103, 1, 100, 4),
+        (999, 1, 999, 100),
+    ):
+        process = proc / str(pid)
+        process.mkdir(parents=True)
+        (process / "stat").write_text(f"{pid} (worker with spaces) S {parent} {group} 0\n")
+        (process / "status").write_text(f"VmRSS:\t{rss} kB\n")
+    monkeypatch.setattr(sandbox.sys, "platform", "linux")
+    monkeypatch.setattr(sandbox, "Path", lambda value: proc if value == "/proc" else Path(value))
+    assert sandbox.resident_bytes(100) == 10 * 1024
+    with pytest.raises(RuntimeError, match="RSS unavailable"):
+        sandbox.resident_bytes(500)

@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from sqlalchemy import Column, MetaData, String, Table, Text, create_engine, delete, select, text
+from sqlalchemy.engine import URL, make_url
 
 metadata = MetaData()
 records = Table(
@@ -55,12 +56,14 @@ class Store:
     def __init__(self, url: str):
         if "://" not in url:
             Path(url).parent.mkdir(parents=True, exist_ok=True)
-            url = "sqlite:///" + str(Path(url).resolve())
-        self.url = url
+            engine_url = URL.create("sqlite", database=str(Path(url).resolve()))
+        else:
+            engine_url = make_url(url)
+        self.url = str(engine_url)
         self.engine = create_engine(
-            url,
+            engine_url,
             connect_args={"timeout": 30, "check_same_thread": False}
-            if url.startswith("sqlite")
+            if engine_url.get_backend_name() == "sqlite"
             else {},
             pool_pre_ping=True,
         )

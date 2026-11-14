@@ -12,7 +12,11 @@ from fastapi.responses import JSONResponse
 from fastapi.responses import Response as HTTPResponse
 from starlette.concurrency import run_in_threadpool
 
-from parity.runtime import Context, Response
+from parity.runtime import Context, Response, _is_json_media_type
+
+
+def _invalid_json_constant(value):
+    raise ValueError(f"invalid JSON constant: {value}")
 
 
 def main():
@@ -56,7 +60,7 @@ def main():
             if len(raw) > 65536:
                 return JSONResponse({"error": "REQUEST_TOO_LARGE"}, status_code=413)
         try:
-            body = json.loads(raw) if raw else None
+            body = json.loads(raw, parse_constant=_invalid_json_constant) if raw else None
         except ValueError:
             return JSONResponse({"error": "INVALID"}, status_code=422)
         query: dict = dict(request.query_params)
@@ -90,12 +94,23 @@ def main():
                 "pending" if status >= 500 else "completed" if status < 400 else "failed",
                 http_status=status,
             )
-            if status in (204, 304) or request.method == "HEAD":
+            if (
+                status in (204, 205, 304)
+                or request.method == "HEAD"
+                or (
+                    isinstance(result, Response)
+                    and data is None
+                    and (
+                        not (response_headers or {}).get("content-type")
+                        or (response_headers or {}).get("content-length") == "0"
+                    )
+                )
+            ):
                 return HTTPResponse(status_code=status, headers=response_headers)
             if (
                 isinstance(result, Response)
                 and isinstance(data, str)
-                and "json" not in (response_headers or {}).get("content-type", "")
+                and not _is_json_media_type((response_headers or {}).get("content-type", ""))
             ):
                 return HTTPResponse(
                     data, status_code=status, headers=response_headers, media_type="text/plain"

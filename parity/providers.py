@@ -68,11 +68,14 @@ class CodexProvider:
                 "multi_agent",
                 "multi_agent_v2",
                 "image_generation",
+                "view_image",
                 "hooks",
                 "skill_search",
             ):
                 cmd += ["--disable", feature]
             cmd += [
+                "--enable",
+                "skip_host_skill_discovery",
                 "-c",
                 'web_search="disabled"',
                 "-c",
@@ -111,14 +114,21 @@ class CodexProvider:
                     raise
             usage = None
             for line in (directory / "events.jsonl").read_text().splitlines():
+                if not line.strip():
+                    continue
                 try:
                     event = json.loads(line)
-                except ValueError:
-                    continue
+                except ValueError as exc:
+                    raise RuntimeError("provider emitted an invalid JSON event") from exc
+                if not isinstance(event, dict):
+                    raise RuntimeError("provider emitted an invalid JSON event")
                 if event.get("usage"):
                     usage = event["usage"]
                 item = event.get("item", {})
-                if item.get("type") in {"command_execution", "mcp_tool_call", "web_search"}:
+                if "item" in event and (
+                    not isinstance(item, dict)
+                    or item.get("type") not in {"agent_message", "reasoning"}
+                ):
                     raise RuntimeError("provider attempted a native tool; refused contaminated run")
             (directory / "usage.json").write_text(
                 json.dumps(

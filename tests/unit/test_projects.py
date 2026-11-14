@@ -1,8 +1,10 @@
+import json
+
 import pytest
 
 from parity.contracts import analyze, load
 from parity.plans import MigrationPlan, validate_plan
-from parity.project import initialize
+from parity.project import Project, initialize
 from parity.resources import examples
 
 
@@ -32,3 +34,22 @@ def test_field_mapping_must_exist():
             load(root / "contracts/commerce/v1.json"),
             load(root / "contracts/commerce/v2.json"),
         )
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "http://127.0.0.1:invalid",
+        "http://127.0.0.1:65536",
+        "http://127.0.0.1:0",
+        "http://@127.0.0.1",
+        "http://:@127.0.0.1",
+    ],
+)
+def test_invalid_endpoint_authority_is_rejected_before_network_calls(tmp_path, url):
+    config_path = initialize(tmp_path, example="tickets")
+    config = json.loads(config_path.read_text())
+    config["old"]["base_url"] = url
+    config_path.write_text(json.dumps(config))
+    with pytest.raises(ValueError):
+        Project(config_path)

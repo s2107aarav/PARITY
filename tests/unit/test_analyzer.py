@@ -3,7 +3,7 @@ import json
 import pytest
 from pydantic import ValidationError
 
-from parity.contracts import analyze, load, operations, resolve, resolve_pointer
+from parity.contracts import analyze, load, operations, resolve, resolve_pointer, schema_fields
 from parity.plans import MigrationPlan, validate_plan
 from parity.resources import examples
 from parity.sandbox import check_source
@@ -156,3 +156,57 @@ def test_contract_loader_rejects_non_object(tmp_path):
     path.write_text("[]")
     with pytest.raises(ValueError, match="OpenAPI"):
         load(path)
+
+
+def test_boolean_property_schemas_and_literal_references_can_be_inspected():
+    schema = {
+        "properties": {"allowed": True, "denied": False, "$ref": {"type": "string"}},
+        "default": {"$ref": "literal"},
+    }
+    assert resolve({}, schema) == schema
+    assert schema_fields(schema) == {
+        "allowed": {"type": "any", "required": False},
+        "denied": {"type": "never", "required": False},
+        "$ref": {"type": "string", "required": False},
+    }
+    assert resolve({"value": False}, {"$ref": "#/value", "description": "Never"}) is False
+
+
+def test_path_servers_inherit_and_operation_servers_override():
+    def document(url):
+        return {
+            "info": {},
+            "paths": {
+                "/items": {
+                    "servers": [{"url": url}],
+                    "get": {"responses": {}},
+                    "post": {"responses": {}, "servers": [{"url": "https://fixed.example"}]},
+                }
+            },
+        }
+
+    changes = analyze(document("https://old.example"), document("https://new.example"))["changes"]
+    assert [(change["kind"], change["operation"]) for change in changes] == [
+        ("servers_changed", "GET /items")
+    ]
+
+
+def test_authentication_definition_changes_are_reported_without_requirement_changes():
+    old = {
+        "info": {},
+        "paths": {},
+        "security": [{"key": []}],
+        "components": {
+            "securitySchemes": {"key": {"type": "apiKey", "in": "header", "name": "X-Key"}}
+        },
+    }
+    import copy
+
+    new = copy.deepcopy(old)
+    new["components"]["securitySchemes"]["key"]["name"] = "X-New-Key"
+    changes = analyze(old, new)["changes"]
+    assert len(changes) == 1 and changes[0]["kind"] == "securitySchemes_changed"
+    assert changes[0]["evidence"] == [
+        {"document": version, "pointer": "#/components/securitySchemes"}
+        for version in ("old", "new")
+    ]

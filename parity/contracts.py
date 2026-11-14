@@ -40,39 +40,71 @@ def resolve_pointer(doc, ref: str):
     return node
 
 
-def resolve(doc, node, seen=()):
+def resolve(doc, node, seen=(), *, expand_schemas=True):
     if isinstance(node, list):
-        return [resolve(doc, value, seen) for value in node]
+        return [resolve(doc, value, seen, expand_schemas=expand_schemas) for value in node]
     if not isinstance(node, dict):
         return node
     if "$ref" in node:
         ref = node["$ref"]
+        if not isinstance(ref, str):
+            raise ValueError("schema references must be strings")
         if ref in seen:
             return {"$ref": ref}
         if not ref.startswith("#/"):
             raise ValueError("external schema references are not supported")
         result = resolve_pointer(doc, ref)
-        resolved = resolve(doc, result, (*seen, ref))
-        siblings = {key: resolve(doc, value, seen) for key, value in node.items() if key != "$ref"}
+        resolved = resolve(doc, result, (*seen, ref), expand_schemas=expand_schemas)
+        siblings = resolve(
+            doc,
+            {key: value for key, value in node.items() if key != "$ref"},
+            seen,
+            expand_schemas=expand_schemas,
+        )
+        if isinstance(resolved, bool):
+            return siblings if resolved and siblings else resolved
         return {**resolved, **siblings} if siblings else resolved
     return {
-        k: resolve(doc, v, seen)
-        if isinstance(v, dict)
-        else [resolve(doc, x, seen) for x in v]
-        if isinstance(v, list)
-        else v
+        k: v
+        if k in {"default", "example", "enum", "const", "value"}
+        or (k == "examples" and isinstance(v, list))
+        or (k == "schema" and not expand_schemas)
+        else {
+            (name.lower() if k == "content" else name): resolve(
+                doc, schema, seen, expand_schemas=expand_schemas
+            )
+            for name, schema in v.items()
+        }
+        if k
+        in {
+            "properties",
+            "patternProperties",
+            "$defs",
+            "definitions",
+            "dependentSchemas",
+            "schemas",
+            "responses",
+            "headers",
+            "examples",
+            "content",
+            "paths",
+        }
+        and isinstance(v, dict)
+        else resolve(doc, v, seen, expand_schemas=expand_schemas)
         for k, v in node.items()
     }
 
 
-def operations(doc):
+def operations(doc, *, expand_schemas=True):
     result = {}
     for path, raw_entry in doc["paths"].items():
-        entry = resolve(doc, raw_entry)
+        entry = resolve(doc, raw_entry, expand_schemas=expand_schemas)
         for method, op in entry.items():
             if method not in METHODS:
                 continue
             operation = {**op, "pointer": f"#/paths/{pointer(path)}/{method}"}
+            if "servers" not in operation and "servers" in entry:
+                operation["servers"] = entry["servers"]
             parameters = {
                 (param["in"], param["name"]): param
                 for param in [*entry.get("parameters", []), *op.get("parameters", [])]
@@ -90,11 +122,15 @@ def schema_fields(node, prefix=""):
     for name, spec in node.get("properties", {}).items():
         path = prefix + name
         result[path] = {
-            "type": spec.get("type", "composite"),
+            "type": spec.get("type", "composite")
+            if isinstance(spec, dict)
+            else "any"
+            if spec
+            else "never",
             "required": name in node.get("required", []),
         }
         result.update(schema_fields(spec, path + "."))
-        if spec.get("type") == "array":
+        if isinstance(spec, dict) and spec.get("type") == "array":
             result.update(schema_fields(spec.get("items", {}), path + "[]."))
     return result
 
@@ -117,19 +153,24 @@ def payload_fields(operation, section):
 def analyze(old: dict, new: dict):
     left, right = operations(old), operations(new)
     changes = []
-    for section in ("security", "servers"):
-        if old.get(section) != new.get(section):
+    for section in ("security", "servers", "securitySchemes"):
+        before, after = (
+            (doc.get("components", {}) if section == "securitySchemes" else doc).get(section)
+            for doc in (old, new)
+        )
+        location = "#/components/" + section if section == "securitySchemes" else "#/" + section
+        if before != after:
             changes.append(
                 {
                     "kind": section + "_changed",
                     "operation": "*",
-                    "before": old.get(section),
-                    "after": new.get(section),
+                    "before": before,
+                    "after": after,
                     "impact": "review",
                     "certainty": "static",
                     "evidence": [
-                        {"document": "old", "pointer": "#/" + section},
-                        {"document": "new", "pointer": "#/" + section},
+                        {"document": "old", "pointer": location},
+                        {"document": "new", "pointer": location},
                     ],
                 }
             )

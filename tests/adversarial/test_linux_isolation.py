@@ -1,12 +1,13 @@
 import json
 import subprocess
 import sys
+from pathlib import Path
 
 import httpx
 import pytest
 from fastapi import FastAPI
 
-from parity.sandbox import AdapterProcess
+from parity.sandbox import RESOURCE_POLICY, AdapterProcess, resident_bytes
 from parity.serving import Server
 
 
@@ -63,3 +64,40 @@ print(json.dumps(result))
         if worker:
             worker.close()
         server.close()
+
+
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="Linux namespace RSS isolation")
+def test_linux_rss_monitor_tracks_workers_that_change_process_group(tmp_path, monkeypatch):
+    source = tmp_path / "adapter.py"
+    source.write_text("""import os
+def handle(ctx, method, path, body, query, headers):
+    os.setsid()
+    return 200, {"ready": True}
+""")
+    # Exercise the OS boundary directly, independently of the AST capability filter.
+    monkeypatch.setattr("parity.sandbox.check_source", lambda _: None)
+    service = Server(FastAPI())
+    worker = None
+    try:
+        worker = AdapterProcess(source, service.url, tmp_path / "worker")
+        with httpx.Client(trust_env=False) as client:
+            assert client.get(worker.url + "/detach").json() == {"ready": True}
+        group_rss = 0
+        for process in Path("/proc").glob("[0-9]*"):
+            try:
+                fields = (process / "stat").read_text().rsplit(")", 1)[1].split()
+                if int(fields[2]) == worker.proc.pid:
+                    for line in (process / "status").read_text().splitlines():
+                        if line.startswith("VmRSS:"):
+                            group_rss += int(line.split()[1]) * 1024
+            except (OSError, ValueError, IndexError):
+                continue
+        ceiling = group_rss + 1024 * 1024
+        assert resident_bytes(worker.proc.pid) > ceiling
+        monkeypatch.setitem(RESOURCE_POLICY, "rss_bytes", ceiling)
+        worker.proc.wait(timeout=5)
+        assert json.loads((worker.root / "termination.json").read_text())["reason"] == "rss"
+    finally:
+        if worker:
+            worker.close()
+        service.close()

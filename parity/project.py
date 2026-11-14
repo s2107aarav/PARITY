@@ -1,12 +1,14 @@
 """User-owned staging projects and paired HTTP scenarios."""
 
 import importlib.util
+import inspect
 import json
 import os
 import re
+import sys
 import time
 import uuid
-from contextlib import ExitStack
+from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -14,7 +16,7 @@ from urllib.parse import urlsplit
 import httpx
 from pydantic import BaseModel, ConfigDict, Field
 
-from parity.comparison import compare_json, validate_response
+from parity.comparison import _is_json_media_type, compare_json, validate_response
 from parity.contracts import load, operations
 from parity.files import write_json
 from parity.relay import relay_app
@@ -67,6 +69,14 @@ class ProjectSettings(Settings):
 class Pair:
     old: httpx.Response
     new: httpx.Response
+
+
+def _invoke(function, case):
+    result = function(case)
+    if inspect.isawaitable(result) or inspect.isgenerator(result) or inspect.isasyncgen(result):
+        if inspect.iscoroutine(result) or inspect.isgenerator(result):
+            result.close()
+        raise ValueError("scenario functions must execute synchronously without yielding")
 
 
 class Case:
@@ -151,7 +161,7 @@ class Case:
                 raise AssertionError(f"{method} {path}: {header} header differs")
         if not left.content and not right.content:
             return Pair(left, right)
-        if "json" in left.headers.get("content-type", ""):
+        if _is_json_media_type(left.headers.get("content-type", "")):
             compare_json(self.normalize(left.json(), right.json()), right.json())
         else:
             compare_json(left.text, right.text)
@@ -168,10 +178,11 @@ class Project:
             if (
                 url.scheme not in {"http", "https"}
                 or not url.hostname
-                or url.username
-                or url.password
+                or url.username is not None
+                or url.password is not None
                 or url.query
                 or url.fragment
+                or url.port == 0
             ):
                 raise ValueError(
                     "endpoint URLs must be HTTP(S) without embedded credentials, query or fragment"
@@ -182,6 +193,7 @@ class Project:
         self.new = load(self.root / self.settings.new.schema_path)
         self.workspace = (self.root / self.settings.workspace).resolve()
 
+    @contextmanager
     def scenario_module(self):
         path = self.root / self.settings.scenarios
         spec = importlib.util.spec_from_file_location(
@@ -190,7 +202,15 @@ class Project:
         if spec is None or spec.loader is None:
             raise ValueError("could not load scenario module")
         module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
+        sys.modules[spec.name] = module
+        try:
+            exec(compile(path.read_bytes(), str(path), "exec"), module.__dict__)
+            yield module, self._scenario_tests(module)
+        finally:
+            sys.modules.pop(spec.name, None)
+
+    @staticmethod
+    def _scenario_tests(module):
         tests = [
             (name, value)
             for name, value in vars(module).items()
@@ -200,12 +220,28 @@ class Project:
             raise ValueError(
                 "scenario module must define at least one test_ function accepting case"
             )
-        return module, tests
+        for name, function in [
+            *tests,
+            *(
+                (name, getattr(module, name, None))
+                for name in ("setup", "teardown", "check_effects")
+            ),
+        ]:
+            if (
+                inspect.iscoroutinefunction(function)
+                or inspect.isgeneratorfunction(function)
+                or inspect.isasyncgenfunction(function)
+            ):
+                raise ValueError(f"{name} must be a synchronous function without yield")
+        return tests
 
     def doctor(self):
+        with self.scenario_module() as (module, tests):
+            return self._doctor(module, tests)
+
+    def _doctor(self, module, tests):
         operations(self.old)
         operations(self.new)
-        module, tests = self.scenario_module()
         for endpoint in (self.settings.old, self.settings.new):
             endpoint.credentials()
         if not (self.root / self.settings.notes).is_file():
@@ -238,8 +274,11 @@ class Project:
         return root
 
     def validate(self, adapter=None, output=None):
-        self.doctor()
-        module, tests = self.scenario_module()
+        with self.scenario_module() as (module, tests):
+            self._doctor(module, tests)
+            return self._validate(module, tests, adapter, output)
+
+    def _validate(self, module, tests, adapter, output):
         output = Path(output) if output else self.workspace / "checks" / uuid.uuid4().hex
         output.mkdir(parents=True, exist_ok=False)
         rows = []
@@ -297,11 +336,11 @@ class Project:
                 }
                 try:
                     if callable(getattr(module, "setup", None)):
-                        module.setup(case)
-                    test(case)
+                        _invoke(module.setup, case)
+                    _invoke(test, case)
                     if effects:
                         row["business_effects"] = "failed"
-                        module.check_effects(case)
+                        _invoke(module.check_effects, case)
                         row["business_effects"] = "passed"
                     row["status"] = "pass"
                 except Exception as exc:
@@ -315,7 +354,7 @@ class Project:
                 finally:
                     if callable(getattr(module, "teardown", None)):
                         try:
-                            module.teardown(case)
+                            _invoke(module.teardown, case)
                         except Exception as exc:
                             row.update(
                                 status="fail", mismatch=f"teardown: {type(exc).__name__}: {exc}"

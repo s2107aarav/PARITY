@@ -12,11 +12,11 @@
     "parity/examples/artifacts/generated/commerce-live-002/plan.json": "b70adf4ad8d884f3ac4456ef10a9aa7af72c3044141824337e7b2218bee9326f",
     "parity/examples/artifacts/generated/transfer-live-001/adapter.py": "3b0a0df089be488c3ea31042ec65acf8007a6ec8122f639e763c6dd0f759e659",
     "parity/examples/artifacts/generated/transfer-live-001/plan.json": "bd8189e3a3430296385b52378ec7594a08c70010d670aca3efd79ba1fe90ea5f",
-    "parity/runtime.py": "1887520d007079cfed98196059c3eb98f9c2235a87c6ebd02b1598144b7bba30",
-    "parity/storage.py": "84bd0038aae41abb801d98b7853c5925948ae535e47ee86f6150d3453f5a11e4",
-    "parity/worker.py": "15568bdeeac2f4ce40c00ffa2be52d28b7915648f91ba57f42d4fb89264f9e6c",
+    "parity/runtime.py": "2c23753ab8e16af4ffe3a6b55267a3b994be4b3476311bf5b7b46d5d0a562233",
+    "parity/storage.py": "2d89c7c7ff4c683e186b075ddfd64bc9a2fa4f31f98639718629fca9ae71af86",
+    "parity/worker.py": "9b39597c1cbd10c9b5793ecfd4d55c140749b50dc11ac2f040c3d30caaa5d75e",
     "parity/agent.py": "f2cb9464429cf4e45c854eb9b763c7f7b905a970eeaf079507faa256aa8ceef2",
     "parity/plans.py": "58c275d353901a3aaf979cb4e31150d6d2989bc8c496e0db408ea8239a1fa017",
-    "parity/contracts.py": "618a0da2447e1bfbed2339eea467ed643fbda0d51a2f3901edf6db7df5a8a2ab"
+    "parity/contracts.py": "b782ee7b423817175d7da975720bd8c9cf0c6e3073f2e0d015095bd6e9368e30"
   }
 }

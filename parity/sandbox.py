@@ -116,22 +116,35 @@ def _limits():
 
 def resident_bytes(pid: int) -> int:
     if sys.platform.startswith("linux"):
-        # bubblewrap can remain a supervisor: measure the whole inherited process group,
-        # not just its small launcher. No --new-session is used inside this group.
-        total = 0
+        # Include descendants even if they create a new session/process group.
+        # PID namespace reparenting keeps detached workers under bubblewrap's subtree.
+        children: dict[int, list[int]] = {}
+        samples: dict[int, int] = {}
+        members = {pid}
         for process in Path("/proc").glob("[0-9]*"):
             try:
+                process_id = int(process.name)
                 fields = (process / "stat").read_text().rsplit(")", 1)[1].split()
-                if int(fields[2]) != pid:
-                    continue
+                children.setdefault(int(fields[1]), []).append(process_id)
+                if int(fields[2]) == pid:
+                    members.add(process_id)
                 for line in (process / "status").read_text().splitlines():
                     if line.startswith("VmRSS:"):
-                        total += int(line.split()[1]) * 1024
+                        samples[process_id] = int(line.split()[1]) * 1024
             except (OSError, ValueError, IndexError):
                 continue  # Processes may exit during enumeration.
+        pending = list(members)
+        visited = set()
+        while pending:
+            process_id = pending.pop()
+            if process_id in visited:
+                continue
+            visited.add(process_id)
+            pending.extend(children.get(process_id, []))
+        total = sum(samples.get(process_id, 0) for process_id in visited)
         if total:
             return total
-        raise RuntimeError("worker process-group RSS unavailable from procfs")
+        raise RuntimeError("worker process RSS unavailable from procfs")
     sample = subprocess.run(
         ["/bin/ps", "-o", "rss=", "-p", str(pid)],
         capture_output=True,

@@ -63,6 +63,26 @@ def project(tmp_path, monkeypatch):
         def tags(request: Request):
             return {"tags": request.query_params.getlist("tag")}
 
+        @app.get("/empty")
+        def empty():
+            return Response(status_code=200, media_type="application/json")
+
+        @app.get("/null")
+        def null():
+            return JSONResponse(None)
+
+        @app.get("/text-json")
+        def text_json():
+            return PlainTextResponse('{ "literal": true }')
+
+        @app.get("/json-string")
+        def json_string():
+            return Response('"text value"', media_type="Application/JSON")
+
+        @app.post("/reset", status_code=205)
+        def reset():
+            return Response(status_code=205)
+
         @app.get("/echo/{tail:path}")
         def echo(request: Request):
             return {
@@ -100,6 +120,97 @@ def adapter(project, source=SOURCE):
     path = project.root / "adapter.py"
     path.write_text(source)
     return path
+
+
+@pytest.mark.parametrize("name", ["test_workflow", "setup", "teardown", "check_effects"])
+@pytest.mark.parametrize(
+    "declaration,body", [("async def", "pass"), ("def", "yield 1"), ("async def", "yield 1")]
+)
+def test_scenarios_cannot_pass_without_running_deferred_functions(project, name, declaration, body):
+    project.root.joinpath("scenarios.py").write_text(
+        f"def test_sync(case):\n    pass\n{declaration} {name}(case):\n    {body}\n"
+    )
+    with pytest.raises(ValueError, match=f"{name} must be a synchronous function"):
+        project.doctor()
+
+
+@pytest.mark.parametrize("name", ["test_wrapped", "setup", "teardown", "check_effects"])
+@pytest.mark.parametrize(
+    "declaration,body",
+    [
+        ("async def", "raise AssertionError('unexecuted')"),
+        ("def", "yield 1"),
+        ("async def", "yield 1"),
+    ],
+)
+def test_wrappers_cannot_hide_deferred_scenario_work(project, name, declaration, body):
+    project.root.joinpath("scenarios.py").write_text(
+        f"{declaration} deferred(case):\n    {body}\n"
+        f"def test_sync(case):\n    pass\ndef {name}(case):\n    return deferred(case)\n"
+    )
+    result = project.validate()
+    assert result["passed"] < result["total"]
+    failed = [row for row in result["scenarios"] if row["status"] == "fail"]
+    assert all("must execute synchronously" in row["mismatch"] for row in failed)
+    assert result["business_effects"] != "checked"
+
+
+def test_validation_executes_scenario_module_once(project):
+    project.root.joinpath("scenarios.py").write_text(
+        "from pathlib import Path\n"
+        'counter = Path(__file__).with_name("imports")\n'
+        'counter.write_text(str(int(counter.read_text()) + 1) if counter.exists() else "1")\n'
+        'def test_import(case):\n    assert counter.read_text() == "1"\n'
+    )
+    assert project.validate()["passed"] == 1
+    assert project.root.joinpath("imports").read_text() == "1"
+
+
+def test_scenario_loader_uses_current_source_when_timestamp_and_size_match(project):
+    import os
+    import py_compile
+
+    path = project.root / "scenarios.py"
+    path.write_text("def test_value(case):\n    assert True \n")
+    py_compile.compile(str(path), doraise=True)
+    original = path.stat()
+    path.write_text("def test_value(case):\n    assert False\n")
+    assert path.stat().st_size == original.st_size
+    os.utime(path, ns=(original.st_atime_ns, original.st_mtime_ns))
+    assert project.validate()["passed"] == 0
+
+
+def test_dataclass_annotations_work_and_temporary_modules_are_cleaned_up(project):
+    import sys
+
+    before = {name for name in sys.modules if name.startswith("parity_user_scenarios_")}
+    project.root.joinpath("scenarios.py").write_text("""from __future__ import annotations
+from dataclasses import dataclass
+from typing import get_type_hints
+import sys
+class Value:
+    pass
+@dataclass
+class Record:
+    value: Value
+def test_record(case):
+    assert __name__ in sys.modules
+    assert get_type_hints(Record)["value"] is Value
+    assert isinstance(Record(Value()).value, Value)
+""")
+    assert project.doctor()["scenarios"] == ["test_record"]
+    assert project.validate()["passed"] == 1
+    assert {name for name in sys.modules if name.startswith("parity_user_scenarios_")} == before
+
+
+def test_failed_scenario_import_cleans_up_temporary_module(project):
+    import sys
+
+    before = {name for name in sys.modules if name.startswith("parity_user_scenarios_")}
+    project.root.joinpath("scenarios.py").write_text('raise ValueError("import failed")\n')
+    with pytest.raises(ValueError, match="import failed"):
+        project.doctor()
+    assert {name for name in sys.modules if name.startswith("parity_user_scenarios_")} == before
 
 
 def test_external_api_validation_and_effect_coverage(project):
@@ -177,6 +288,19 @@ def test_worker_preserves_empty_text_headers_and_repeated_query(project, tmp_pat
                 "tags": ["a", "b"]
             }
             assert client.get("/echo/a%2Fb%20c").json()["path"] == "/echo/a%2Fb%20c"
+            empty = client.get("/empty")
+            assert empty.status_code == 200 and empty.content == b""
+            null = client.get("/null")
+            assert null.status_code == 200 and null.content == b"null"
+            assert client.get("/text-json").text == '{ "literal": true }'
+            assert client.get("/json-string").json() == "text value"
+            reset = client.post("/reset")
+            assert reset.status_code == 205 and reset.content == b""
+            for literal in ("NaN", "Infinity", "-Infinity"):
+                invalid = client.post(
+                    "/items", content=literal, headers={"content-type": "application/json"}
+                )
+                assert invalid.status_code == 422 and invalid.json() == {"error": "INVALID"}
     finally:
         worker.close()
 
@@ -194,6 +318,49 @@ def test_relay_preserves_encoded_paths_and_owns_credentials(project):
             }
     finally:
         relay.close()
+
+
+def test_relay_keeps_cookies_per_caller_and_preserves_repeated_headers():
+    from contextlib import ExitStack
+
+    app = FastAPI()
+
+    @app.get("/cookies")
+    def cookies(request: Request):
+        response = JSONResponse(
+            {"cookie": request.headers.get("cookie"), "tags": request.headers.getlist("x-tag")}
+        )
+        response.set_cookie("first", "one")
+        response.set_cookie("second", "two")
+        response.headers["connection"] = "x-private"
+        response.headers["x-private"] = "private"
+        return response
+
+    @app.post("/encoded")
+    async def encoded(request: Request):
+        return {
+            "encoding": request.headers.get("content-encoding"),
+            "body": (await request.body()).decode(),
+        }
+
+    with ExitStack() as stack:
+        upstream = Server(app)
+        stack.callback(upstream.close)
+        relay = Server(relay_app(upstream.url))
+        stack.callback(relay.close)
+        for _ in range(2):
+            with httpx.Client(base_url=relay.url, trust_env=False) as client:
+                response = client.get("/cookies", headers=[("x-tag", "a"), ("x-tag", "b")])
+                assert response.json() == {"cookie": None, "tags": ["a", "b"]}
+                assert len(response.headers.get_list("set-cookie")) == 2
+                assert "x-private" not in response.headers
+        with httpx.Client(base_url=relay.url, trust_env=False) as client:
+            response = client.get("/cookies", headers={"cookie": "caller=own"})
+            assert response.json()["cookie"] == "caller=own"
+            encoded = client.post(
+                "/encoded", content=b"encoded", headers={"content-encoding": "custom"}
+            )
+            assert encoded.json() == {"encoding": "custom", "body": "encoded"}
 
 
 def test_schema_validation_catches_invalid_adapter_type(project):

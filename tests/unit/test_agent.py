@@ -63,3 +63,33 @@ def test_source_cannot_precede_valid_plan(tmp_path):
             )
     finally:
         trial.temp.cleanup()
+
+
+def test_single_shot_cannot_silently_ignore_resume(monkeypatch, capsys):
+    from parity.cli import main
+
+    base = examples() / "contracts/transfer"
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "parity",
+            "generate",
+            "--old",
+            str(base / "v1.json"),
+            "--new",
+            str(base / "v2.json"),
+            "--strategy",
+            "single-shot",
+            "--resume-artifact",
+            "saved-run",
+        ],
+    )
+
+    def unexpected_provider(*args):
+        raise AssertionError("invalid options must be rejected before provider initialization")
+
+    monkeypatch.setattr("parity.cli.CodexProvider", unexpected_provider)
+    with pytest.raises(SystemExit) as exc:
+        main()
+    assert exc.value.code == 2
+    assert "--resume-artifact requires --strategy agent" in capsys.readouterr().out

@@ -2,6 +2,8 @@ import json
 import shutil
 import subprocess
 import sys
+import tarfile
+import zipfile
 from pathlib import Path
 
 
@@ -9,12 +11,15 @@ def test_wheel_installs_and_runs_outside_checkout(tmp_path):
     repository = Path(__file__).resolve().parents[2]
     source = tmp_path / "source"
     source.mkdir()
-    for name in ("pyproject.toml", "README.md"):
+    for name in ("pyproject.toml", "README.md", "MANIFEST.in"):
         shutil.copyfile(repository / name, source / name)
     for name in ("apps", "parity"):
         shutil.copytree(
             repository / name, source / name, ignore=shutil.ignore_patterns("__pycache__")
         )
+    cache = source / "parity/examples/artifacts/generated/commerce-live-002/__pycache__"
+    cache.mkdir()
+    (cache / "adapter.cpython-312.pyc").write_bytes(b"stale bytecode")
     build = subprocess.run(
         [sys.executable, "-m", "build", "--outdir", str(tmp_path / "dist"), str(source)],
         capture_output=True,
@@ -23,6 +28,14 @@ def test_wheel_installs_and_runs_outside_checkout(tmp_path):
     )
     assert build.returncode == 0, build.stdout + build.stderr
     wheel = next((tmp_path / "dist").glob("*.whl"))
+    with zipfile.ZipFile(wheel) as archive:
+        assert not any(
+            "__pycache__" in name or name.endswith(".pyc") for name in archive.namelist()
+        )
+    with tarfile.open(next((tmp_path / "dist").glob("*.tar.gz"))) as archive:
+        assert not any(
+            "__pycache__" in name or name.endswith(".pyc") for name in archive.getnames()
+        )
     installed = tmp_path / "installed"
     install = subprocess.run(
         [

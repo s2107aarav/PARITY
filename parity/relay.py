@@ -1,6 +1,6 @@
 """Trusted HTTP relay: upstream credentials never enter generated workers."""
 
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, closing
 
 import httpx
 from fastapi import FastAPI, Request
@@ -50,12 +50,15 @@ def relay_app(target, *, headers=None, socket_path=None, timeout=10, allow_write
             body.extend(chunk)
             if len(body) > 1024 * 1024:
                 return Response(status_code=413)
-        incoming = {
-            key: value
-            for key, value in request.headers.items()
-            if key.lower() not in HOP_HEADERS | {name.lower() for name in (headers or {})}
-        }
-        incoming.update(headers or {})
+        blocked = (
+            (HOP_HEADERS - {"content-encoding"})
+            | {name.lower() for name in (headers or {})}
+            | {name.strip().lower() for name in request.headers.get("connection", "").split(",")}
+        )
+        incoming = [
+            (key, value) for key, value in request.headers.items() if key.lower() not in blocked
+        ]
+        incoming.extend((headers or {}).items())
         upstream_path = request.scope["raw_path"].decode("ascii")
         if not upstream_path.startswith("/") or upstream_path.startswith("//"):
             return Response("Invalid upstream path", status_code=400)
@@ -63,26 +66,30 @@ def relay_app(target, *, headers=None, socket_path=None, timeout=10, allow_write
             from starlette.concurrency import run_in_threadpool
 
             def send():
-                with client.stream(
+                outgoing = httpx.Request(
                     request.method,
-                    upstream_path,
+                    client.base_url.join(upstream_path),
                     params=list(request.query_params.multi_items()),
                     content=bytes(body),
                     headers=incoming,
-                ) as result:
+                )
+                with closing(client.send(outgoing, stream=True)) as result:
                     content = bytearray()
                     for chunk in result.iter_bytes():
                         content.extend(chunk)
                         if len(content) > 1024 * 1024:
                             return Response("Upstream response exceeds 1 MiB", status_code=502)
-                    safe_headers = {
-                        key: value
-                        for key, value in result.headers.items()
-                        if key.lower() not in HOP_HEADERS
+                    excluded = HOP_HEADERS | {
+                        name.strip().lower()
+                        for name in result.headers.get("connection", "").split(",")
                     }
-                    return Response(
-                        bytes(content), status_code=result.status_code, headers=safe_headers
+                    response = Response(bytes(content), status_code=result.status_code)
+                    response.raw_headers.extend(
+                        (key, value)
+                        for key, value in result.headers.raw
+                        if key.decode("ascii").lower() not in excluded
                     )
+                    return response
 
             return await run_in_threadpool(send)
         except httpx.HTTPError:
