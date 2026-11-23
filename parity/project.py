@@ -1,5 +1,6 @@
 """User-owned staging projects and paired HTTP scenarios."""
 
+import hashlib
 import importlib.util
 import inspect
 import json
@@ -16,12 +17,13 @@ from urllib.parse import urlsplit
 import httpx
 from pydantic import BaseModel, ConfigDict, Field
 
-from parity.comparison import _is_json_media_type, compare_json, validate_response
-from parity.contracts import load, operations
+from parity.comparison import compare_json, exact_number, require_assertions, validate_response
+from parity.contracts import operations, parse
 from parity.files import write_json
+from parity.http_values import is_json_media_type, media_type
 from parity.relay import relay_app
-from parity.runtime import Context, redact
-from parity.sandbox import AdapterProcess, digest
+from parity.runtime import REPLAY_HEADERS, Context, redact
+from parity.sandbox import AdapterProcess, AdapterSource
 from parity.serving import Server
 from parity.storage import Store
 
@@ -63,6 +65,7 @@ class ProjectSettings(Settings):
         default_factory=lambda: ["content-type", "etag", "location", "retry-after"]
     )
     id_mappings: str | None = None
+    bind_existing_runtime: bool = False
 
 
 @dataclass
@@ -131,38 +134,41 @@ class Case:
             right_kwargs["json"] = new_json
         started = time.perf_counter()
         left = self.old.request(method, path, **kwargs)
-        right = self.new.request(method, new_path or path, **right_kwargs)
         event = {
             "method": method,
             "path": path,
             "new_path": new_path or path,
             "expected_status": left.status_code,
-            "actual_status": right.status_code,
-            "elapsed_ms": round((time.perf_counter() - started) * 1000, 3),
+            "actual_status": None,
         }
         self.events.append(event)
+        expected_body = validate_response(self.project.old, method, path, left)
+        right = self.new.request(method, new_path or path, **right_kwargs)
+        event.update(
+            actual_status=right.status_code,
+            elapsed_ms=round((time.perf_counter() - started) * 1000, 3),
+        )
         if left.status_code != right.status_code:
             raise AssertionError(
                 f"{method} {path}: expected HTTP {left.status_code}, got {right.status_code}"
             )
-        validate_response(self.project.old, method, path, left)
-        validate_response(
+        actual_body = validate_response(
             self.project.old if self.adapter else self.project.new,
             method,
             path if self.adapter else new_path or path,
             right,
         )
         for header in self.compare_headers:
-            expected, actual = left.headers.get(header), right.headers.get(header)
+            expected, actual = left.headers.get_list(header), right.headers.get_list(header)
             if header.lower() == "content-type":
-                expected = expected.split(";", 1)[0].strip().lower() if expected else expected
-                actual = actual.split(";", 1)[0].strip().lower() if actual else actual
+                expected = [media_type(value) for value in expected]
+                actual = [media_type(value) for value in actual]
             if expected != actual:
                 raise AssertionError(f"{method} {path}: {header} header differs")
         if not left.content and not right.content:
             return Pair(left, right)
-        if _is_json_media_type(left.headers.get("content-type", "")):
-            compare_json(self.normalize(left.json(), right.json()), right.json())
+        if is_json_media_type(left.headers.get("content-type", "")):
+            compare_json(self.normalize(expected_body, actual_body), actual_body)
         else:
             compare_json(left.text, right.text)
         return Pair(left, right)
@@ -189,8 +195,15 @@ class Project:
                 )
             if url.path not in ("", "/"):
                 raise ValueError("put API path prefixes in scenarios, not endpoint base_url")
-        self.old = load(self.root / self.settings.old.schema_path)
-        self.new = load(self.root / self.settings.new.schema_path)
+        old, new = (
+            (self.root / endpoint.schema_path).read_bytes()
+            for endpoint in (self.settings.old, self.settings.new)
+        )
+        self.old, self.new = (parse(raw, parse_float=exact_number) for raw in (old, new))
+        self.contract_hashes = {
+            "old": hashlib.sha256(old).hexdigest(),
+            "new": hashlib.sha256(new).hexdigest(),
+        }
         self.workspace = (self.root / self.settings.workspace).resolve()
 
     @contextmanager
@@ -204,8 +217,9 @@ class Project:
         module = importlib.util.module_from_spec(spec)
         sys.modules[spec.name] = module
         try:
-            exec(compile(path.read_bytes(), str(path), "exec"), module.__dict__)
-            yield module, self._scenario_tests(module)
+            raw = path.read_bytes()
+            exec(compile(raw, str(path), "exec"), module.__dict__)
+            yield module, self._scenario_tests(module), hashlib.sha256(raw).hexdigest()
         finally:
             sys.modules.pop(spec.name, None)
 
@@ -236,7 +250,7 @@ class Project:
         return tests
 
     def doctor(self):
-        with self.scenario_module() as (module, tests):
+        with self.scenario_module() as (module, tests, _):
             return self._doctor(module, tests)
 
     def _doctor(self, module, tests):
@@ -257,16 +271,33 @@ class Project:
         }
 
     def runtime_root(self, adapter):
-        return self.workspace / "runtime" / digest(Path(adapter))[:16]
+        return self.workspace / "runtime" / AdapterSource.read(adapter).sha256[:16]
 
     def prepare_runtime(self, adapter):
         root = self.runtime_root(adapter)
-        (root / "state").mkdir(parents=True, exist_ok=True)
+        database = root / "state/adapter.db"
+        target = str(httpx.URL(self.settings.new.base_url).copy_with(path="/"))
+        store = Store(str(database))
+        try:
+            with store.transaction() as tx:
+                bound = tx.get("runtime", "upstream")
+                if bound is None:
+                    if not tx.empty() and not self.settings.bind_existing_runtime:
+                        raise ValueError(
+                            "Existing adapter state has no upstream binding. Verify its original URL "
+                            "before setting bind_existing_runtime in parity.json."
+                        )
+                    tx.put("runtime", "upstream", target)
+                elif bound != target:
+                    raise ValueError(
+                        "Adapter state belongs to a different upstream URL. Restore the original URL "
+                        "or use a separate workspace for the new service."
+                    )
+        finally:
+            store.close()
         if self.settings.id_mappings:
             mappings = json.loads((self.root / self.settings.id_mappings).read_text())
-            with_context = Context(
-                "http://localhost", str(root / "state/adapter.db"), trace_bodies=False
-            )
+            with_context = Context("http://localhost", str(database), trace_bodies=False)
             try:
                 with_context.import_ids(mappings)
             finally:
@@ -274,11 +305,13 @@ class Project:
         return root
 
     def validate(self, adapter=None, output=None):
-        with self.scenario_module() as (module, tests):
+        require_assertions()
+        source = AdapterSource.read(adapter) if adapter else None
+        with self.scenario_module() as (module, tests, scenarios_sha256):
             self._doctor(module, tests)
-            return self._validate(module, tests, adapter, output)
+            return self._validate(module, tests, source, output, scenarios_sha256)
 
-    def _validate(self, module, tests, adapter, output):
+    def _validate(self, module, tests, adapter, output, scenarios_sha256):
         output = Path(output) if output else self.workspace / "checks" / uuid.uuid4().hex
         output.mkdir(parents=True, exist_ok=False)
         rows = []
@@ -296,6 +329,7 @@ class Project:
             credentials = self.settings.new.credentials()
             worker = None
             if adapter:
+                runtime = self.prepare_runtime(adapter)
                 proxy = Server(
                     relay_app(
                         target,
@@ -305,9 +339,7 @@ class Project:
                     )
                 )
                 stack.callback(proxy.close)
-                worker = AdapterProcess(
-                    Path(adapter), proxy.url, self.prepare_runtime(adapter), trace_bodies=False
-                )
+                worker = AdapterProcess(adapter, proxy.url, runtime, trace_bodies=False)
                 stack.callback(worker.close)
                 target, credentials = worker.url, {}
             new = stack.enter_context(
@@ -356,9 +388,8 @@ class Project:
                         try:
                             _invoke(module.teardown, case)
                         except Exception as exc:
-                            row.update(
-                                status="fail", mismatch=f"teardown: {type(exc).__name__}: {exc}"
-                            )
+                            row.update(status="fail", teardown_error=f"{type(exc).__name__}: {exc}")
+                            row.setdefault("mismatch", f"teardown: {row['teardown_error']}")
                 rows.append(row)
         effect_results = {row["business_effects"] for row in rows}
         effect_status = "not_checked"
@@ -373,12 +404,9 @@ class Project:
             "scenarios": rows,
             "business_effects": effect_status,
             "coverage": "only declared scenarios and invariants",
-            "adapter_sha256": digest(Path(adapter)) if adapter else None,
-            "scenarios_sha256": digest(self.root / self.settings.scenarios),
-            "contracts": {
-                "old": digest(self.root / self.settings.old.schema_path),
-                "new": digest(self.root / self.settings.new.schema_path),
-            },
+            "adapter_sha256": adapter.sha256 if adapter else None,
+            "scenarios_sha256": scenarios_sha256,
+            "contracts": self.contract_hashes,
         }
         write_json(output / "evaluation.json", result)
         from parity.report import render_project
@@ -417,6 +445,7 @@ class Project:
     def retry(self, adapter, request_id):
         if not self.settings.allow_writes:
             raise ValueError("writes are disabled in project configuration")
+        adapter = AdapterSource.read(adapter)
         record = next(
             (value for value in self.workflows(adapter) if value["id"] == request_id), None
         )
@@ -429,14 +458,17 @@ class Project:
             or not path.startswith("/")
             or path.startswith("//")
             or "://" in path
-            or any(
-                name not in {"idempotency-key", "content-type", "if-match", "if-none-match"}
-                for name in request.get("headers", {})
-            )
+            or not REPLAY_HEADERS.issuperset(request.get("headers", {}))
         ):
             raise ValueError("recorded workflow contains an invalid replay request")
         if not request["headers"].get("idempotency-key"):
             raise ValueError("replay requires the original Idempotency-Key")
+        omitted = record.get("unreplayed_headers")
+        if omitted is None:
+            raise ValueError("record predates header checks; replay the original client request")
+        if omitted:
+            raise ValueError(f"replay cannot reconstruct caller headers: {', '.join(omitted)}")
+        runtime = self.prepare_runtime(adapter)
         with ExitStack() as stack:
             proxy = Server(
                 relay_app(
@@ -447,19 +479,23 @@ class Project:
                 )
             )
             stack.callback(proxy.close)
-            worker = AdapterProcess(
-                Path(adapter), proxy.url, self.prepare_runtime(adapter), trace_bodies=False
-            )
+            worker = AdapterProcess(adapter, proxy.url, runtime, trace_bodies=False)
             stack.callback(worker.close)
+            if record not in self.workflows(adapter):
+                raise ValueError("workflow changed before retry; inspect its current status")
             with httpx.Client(
                 base_url=worker.url, timeout=self.settings.timeout, trust_env=False
             ) as client:
-                response = client.request(
-                    request["method"],
-                    request["path"],
-                    json=request["body"],
-                    params=request["query"],
-                    headers=request["headers"],
+                response = client.send(
+                    httpx.Request(
+                        request["method"],
+                        client.base_url.join(path),
+                        content=json.dumps(request["body"], allow_nan=False)
+                        if request["body"] is not None
+                        else None,
+                        params=request["query"],
+                        headers=request["headers"],
+                    )
                 )
             return {"id": request_id, "status": response.status_code}
 

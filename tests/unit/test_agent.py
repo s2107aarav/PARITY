@@ -5,6 +5,7 @@ import pytest
 from parity.agent import Agent, ToolCall
 from parity.providers import ProviderUnavailable
 from parity.resources import examples
+from parity.sandbox import digest
 
 
 class Unavailable:
@@ -61,6 +62,62 @@ def test_source_cannot_precede_valid_plan(tmp_path):
                     reason="synthetic ordering test",
                 )
             )
+    finally:
+        trial.temp.cleanup()
+
+
+def test_resume_uses_committed_versions_instead_of_newer_aliases(tmp_path):
+    first = agent(tmp_path, Malformed())
+    resumed = agent(tmp_path / "next", Malformed())
+    source = "def handle(ctx, method, path, body, query, headers):\n    return 200, {}\n"
+    bundle = examples() / "artifacts/generated/transfer-live-001"
+    try:
+        first.tool(
+            ToolCall(
+                tool="submit_plan",
+                arguments=json.dumps({"plan": json.loads((bundle / "plan.json").read_text())}),
+                reason="test",
+            )
+        )
+        first.tool(
+            ToolCall(tool="submit_code", arguments=json.dumps({"source": source}), reason="test")
+        )
+        first.persist("running")
+        (first.output / "adapter.py").write_text("partially saved newer source")
+        (first.output / "plan.json").write_text("partially saved newer plan")
+        resumed.resume(first.output)
+        assert resumed.attempts == 1
+        assert resumed.source.read_text() == source
+        assert resumed.plan == first.plan
+        assert resumed.feedback is None
+        first.source.write_text("modified checkpoint")
+        with pytest.raises(ValueError, match="checkpoint digest mismatch"):
+            resumed.resume(first.output)
+    finally:
+        first.temp.cleanup()
+        resumed.temp.cleanup()
+
+
+def test_finish_refuses_replaced_adapter_after_public_pass(tmp_path, monkeypatch):
+    trial = agent(tmp_path, Malformed())
+    bundle = examples() / "artifacts/generated/transfer-live-001"
+    try:
+        trial.source = trial.output / "adapter-v1.py"
+        trial.source.write_bytes((bundle / "adapter.py").read_bytes())
+        alias = trial.output / "adapter.py"
+        alias.write_bytes(trial.source.read_bytes())
+        (trial.output / "plan.json").write_bytes((bundle / "plan.json").read_bytes())
+
+        def replace_alias(source, domain, output):
+            assert source.content == trial.source.read_bytes()
+            alias.write_text("edited during public validation")
+            return {"passed": True}
+
+        monkeypatch.setattr("parity.agent.validate", replace_alias)
+        trial.feedback = trial.validate(trial.source, trial.output / "public-v1")
+        assert trial.feedback["adapter_sha256"] == digest(trial.source) != digest(alias)
+        with pytest.raises(ValueError, match="source or plan changed"):
+            trial.tool(ToolCall(tool="finish", arguments="{}", reason="test"))
     finally:
         trial.temp.cleanup()
 

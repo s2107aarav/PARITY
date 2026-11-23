@@ -1,4 +1,4 @@
-"""Sealed private acceptance for the curated approval-receipt challenge."""
+"""Independent acceptance checks for ticket publication with approval receipts."""
 
 import json
 from pathlib import Path
@@ -6,14 +6,16 @@ from pathlib import Path
 import httpx
 
 from apps.moderated import LegacyTicketClient, new_app, old_app
-from parity.comparison import compare_json, validate_response
+from parity.comparison import compare_json, require_assertions, validate_response
 from parity.contracts import load
 from parity.resources import examples
-from parity.sandbox import AdapterProcess, digest
+from parity.sandbox import AdapterProcess, AdapterSource, digest
 from parity.serving import Server
 
 
-def evaluate(source: Path, output: Path):
+def evaluate(source: Path | AdapterSource, output: Path):
+    require_assertions()
+    adapter = AdapterSource.read(source)
     output.mkdir(parents=True, exist_ok=False)
     contract = load(examples() / "contracts/moderated/v1.json")
     results = []
@@ -29,7 +31,7 @@ def evaluate(source: Path, output: Path):
         worker = None
         record = {"scenario": scenario, "status": "fail"}
         try:
-            worker = AdapterProcess(source, new.url, root / "worker")
+            worker = AdapterProcess(adapter, new.url, root / "worker")
             with (
                 httpx.Client(base_url=old.url, trust_env=False) as a,
                 httpx.Client(base_url=worker.url, trust_env=False, timeout=15) as b,
@@ -48,13 +50,14 @@ def evaluate(source: Path, output: Path):
                     expected=expected.json(), actual=actual.json(), actual_status=actual.status_code
                 )
                 assert actual.status_code == expected.status_code == 201
-                validate_response(contract, "POST", "/tickets", expected)
-                validate_response(contract, "POST", "/tickets", actual)
-                x, y = expected.json(), actual.json()
-                assert type(y["id"]) is int and y["id"] > 0
+                x = validate_response(contract, "POST", "/tickets", expected)
+                y = validate_response(contract, "POST", "/tickets", actual)
+                assert type(actual.json()["id"]) is int and y["id"] > 0
                 x["id"] = y["id"]
                 compare_json(x, y)
-                compare_json(y, candidate.create().json())
+                repeated = candidate.create()
+                assert repeated.status_code == actual.status_code, "retry HTTP status mismatch"
+                compare_json(y, validate_response(contract, "POST", "/tickets", repeated))
                 if scenario == "key_conflict":
                     assert (
                         candidate.create(body="changed").status_code
@@ -83,7 +86,7 @@ def evaluate(source: Path, output: Path):
     result = {
         "suite": "moderated",
         "checker_sha256": digest(Path(__file__)),
-        "source_sha256": digest(source),
+        "source_sha256": adapter.sha256,
         "scenarios": results,
         "passed": sum(r["status"] == "pass" for r in results),
         "total": len(results),

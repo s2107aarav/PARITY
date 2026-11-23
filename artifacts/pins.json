@@ -5,18 +5,20 @@
   "seed": 0,
   "files": {
     "apps/legacy_client.py": "e17922c1485237650f4665f24a4a6ec4920cd161c9b52114e030adaf9a851f5d",
-    "parity/replay.py": "cd2d5ccebd1ece706919bd9b0db050ceb2463a249819d85120795547ce7fb5f6",
-    "parity/transfer_replay.py": "d53e69104fc252f89458def37206703debdd23de8da58104a6d1bc741fd95108",
+    "parity/replay.py": "35c89b2f24f2d2eb22090b7c7023e28bfa19292a09d5be6cf28e58b9d65bb1cc",
+    "parity/transfer_replay.py": "5edc916f6c48e1f67f19e19ebd56b6d3de80437c7e0650827d9b892fcd41eabd",
     "parity/examples/artifacts/generated/commerce-live-001/adapter.py": "6156d576adf406f650976d4b496623fbaefb98b9f8921a79e6477bf2322e7aba",
     "parity/examples/artifacts/generated/commerce-live-002/adapter.py": "18fd24438d8cda806a9c90762ead58510540c4b3401b616b11a4e208624132ee",
     "parity/examples/artifacts/generated/commerce-live-002/plan.json": "b70adf4ad8d884f3ac4456ef10a9aa7af72c3044141824337e7b2218bee9326f",
     "parity/examples/artifacts/generated/transfer-live-001/adapter.py": "3b0a0df089be488c3ea31042ec65acf8007a6ec8122f639e763c6dd0f759e659",
     "parity/examples/artifacts/generated/transfer-live-001/plan.json": "bd8189e3a3430296385b52378ec7594a08c70010d670aca3efd79ba1fe90ea5f",
-    "parity/runtime.py": "2c23753ab8e16af4ffe3a6b55267a3b994be4b3476311bf5b7b46d5d0a562233",
-    "parity/storage.py": "2d89c7c7ff4c683e186b075ddfd64bc9a2fa4f31f98639718629fca9ae71af86",
-    "parity/worker.py": "9b39597c1cbd10c9b5793ecfd4d55c140749b50dc11ac2f040c3d30caaa5d75e",
-    "parity/agent.py": "f2cb9464429cf4e45c854eb9b763c7f7b905a970eeaf079507faa256aa8ceef2",
+    "parity/http_values.py": "6b70e496001ed1b7b7d0e5f7d28cf9a2078f1710a014a3061ab96ad71252ab8d",
+    "parity/runtime.py": "e6749107d922bad76fa4982f9a843e2e2a508ba32bec186e0e4f7d5d89c0035a",
+    "parity/storage.py": "287051b0b2b8e035b02f18ff94f032ed18ed663a42bfcbb70aea9cb0504bed94",
+    "parity/worker.py": "9d29ab57303ea1e5f1d5768fa19d337d8ae2040817bb93e5a0c4a1563eeb52c5",
+    "parity/agent.py": "9045e6422dea3db9f4e9a530dcd62ce3e312d308939703f402dc58fb9b297a30",
     "parity/plans.py": "58c275d353901a3aaf979cb4e31150d6d2989bc8c496e0db408ea8239a1fa017",
-    "parity/contracts.py": "b782ee7b423817175d7da975720bd8c9cf0c6e3073f2e0d015095bd6e9368e30"
+    "parity/comparison.py": "6b840cf082683504a06a64ff858d36adfca0b61c0a785dddfa27e252a7199638",
+    "parity/contracts.py": "77215c240056f53a519a0addc03f61195e3b3e82b6e13b435d1f62a8919d5577"
   }
 }

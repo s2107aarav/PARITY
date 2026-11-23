@@ -4,6 +4,7 @@ This file is never mounted in the generated worker. SHA256 guards detect acciden
 """
 
 import json
+import shlex
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -12,10 +13,10 @@ from apps.commerce_v1 import create_app as v1_app
 from apps.commerce_v2 import create_app as v2_app
 from apps.common import CATALOG
 from apps.legacy_client import LegacyClient
-from parity.comparison import compare_json, validate_response
+from parity.comparison import compare_json, require_assertions, validate_response
 from parity.contracts import load
 from parity.resources import examples
-from parity.sandbox import AdapterProcess, WorkerFailure, digest
+from parity.sandbox import AdapterProcess, AdapterSource, WorkerFailure, digest
 from parity.serving import Server
 
 SCENARIOS = (
@@ -38,8 +39,11 @@ SCENARIOS = (
 
 
 def effect(snapshot, version):
+    require_assertions()
     orders = list(snapshot.get("orders", {}).values())
     ledger = list(snapshot.get("payments", {}).values())
+    reservations = snapshot.get("reservations", {})
+    checked_reservations = set()
     normalized = []
     for row in orders:
         if version == 1:
@@ -47,6 +51,18 @@ def effect(snapshot, version):
             status, amount, oid = row["status"], row["amount"], row["id"]
         else:
             oid = row["order_ref"]
+            reservation = reservations.get(oid)
+            if reservation is not None:
+                checked_reservations.add(oid)
+                quantities: dict[str, int] = {}
+                for line in row["lines"]:
+                    sku = line["product_code"]
+                    quantities[sku] = quantities.get(sku, 0) + line["units"]
+                assert reservation["quantities"] == quantities, "reservation quantity mismatch"
+                status = "released" if row["phase"] == "cancelled" else "held"
+                assert reservation["state"] == status, "reservation state mismatch"
+            elif row["phase"] == "confirmed":
+                raise AssertionError("confirmed order has no reservation")
             charged = any(x["order_ref"] == oid and x["kind"] == "charge" for x in ledger)
             if row["phase"] == "cancelled" and not charged:
                 continue  # Internal compensated draft: not an observable legacy order.
@@ -70,6 +86,8 @@ def effect(snapshot, version):
         if refunds:
             assert refunds[0]["amount"] == amount, "refund amount mismatch"
         normalized.append({"status": status, "amount": amount, "items": items})
+    if version == 2:
+        assert reservations.keys() == checked_reservations, "orphan reservation"
     assert len(ledger) == sum(1 + (x["status"] == "cancelled") for x in normalized), (
         "orphan/extra ledger rows"
     )
@@ -94,19 +112,28 @@ def effect(snapshot, version):
 
 class Replay:
     def __init__(
-        self, source: Path, root: Path, *, trusted=False, old_database=None, new_database=None
+        self,
+        source: Path | AdapterSource,
+        root: Path,
+        *,
+        trusted=False,
+        old_database=None,
+        new_database=None,
     ):
-        self.source, self.root = source.resolve(), root.resolve()
+        self.root = root.resolve()
         self.root.mkdir(parents=True, exist_ok=True)
         self.baseline = Server(v1_app(old_database or str(root / "v1.db")))
-        self.successor = Server(v2_app(new_database or str(root / "v2.db")))
         try:
-            self.worker = AdapterProcess(
-                source, self.successor.url, root / "worker", trusted=trusted
-            )
+            self.successor = Server(v2_app(new_database or str(root / "v2.db")))
+            try:
+                self.worker = AdapterProcess(
+                    source, self.successor.url, root / "worker", trusted=trusted
+                )
+            except BaseException:
+                self.successor.close()
+                raise
         except BaseException:
             self.baseline.close()
-            self.successor.close()
             raise
         self.old, self.new = LegacyClient(self.baseline.url), LegacyClient(self.worker.url)
         self.ids: dict[int, int] = {}
@@ -121,7 +148,13 @@ class Replay:
         start = time.perf_counter()
         actual = new_call()
         new_ms = (time.perf_counter() - start) * 1000
-        expected_data, actual_data = expected.json(), actual.json()
+
+        def body(response):
+            try:
+                return response.json()
+            except ValueError:
+                return response.text
+
         self.last = {
             "action": name,
             "input": {
@@ -132,21 +165,27 @@ class Replay:
             },
             "expected_status": expected.status_code,
             "actual_status": actual.status_code,
-            "expected": expected_data,
-            "actual": actual_data,
+            "expected": body(expected),
+            "actual": body(actual),
             "v1_ms": round(old_ms, 3),
             "adapter_ms": round(new_ms, 3),
         }
         self.events.append(self.last)
+        return self.compare_pair(name, expected, actual)
+
+    def compare_pair(self, name, expected, actual):
         assert expected.status_code == actual.status_code, f"{name}: HTTP status mismatch"
-        for response in (expected, actual):
+        expected_data, actual_data = (
             validate_response(
                 self.contract, response.request.method, response.request.url.path, response
             )
+            for response in (expected, actual)
+        )
+        actual_json = actual.json()
         if isinstance(expected_data, dict) and "id" in expected_data:
-            self.record_id(expected_data["id"], actual_data.get("id"))
+            self.record_id(expected_data["id"], actual_json.get("id"))
         compare_json(self.normalize(expected_data), actual_data)
-        return expected_data, actual_data
+        return expected.json(), actual_json
 
     def record_id(self, expected_id, candidate_id):
         assert type(candidate_id) is int and candidate_id > 0, (
@@ -231,9 +270,7 @@ class Replay:
                 self.worker.restart()
             actual = self.new.checkout(key=scenario)
             assert expected.status_code == actual.status_code == 201, "retry failed to recover"
-            a, b = expected.json(), actual.json()
-            self.record_id(a["id"], b.get("id"))
-            compare_json(self.normalize(a), b)
+            self.compare_pair("recovered checkout", expected, actual)
         elif scenario == "cancellation":
             a, b = self.checkout(key="cancel")
             for _ in range(2):
@@ -263,8 +300,7 @@ class Replay:
             assert all(x.json() == new[0].json() for x in new), (
                 "adapter unstable concurrent results"
             )
-            self.record_id(old[0].json()["id"], new[0].json().get("id"))
-            compare_json(self.normalize(old[0].json()), new[0].json())
+            self.compare_pair("concurrent checkout", old[0], new[0])
             self.events.append(
                 {"action": "six concurrent duplicate checkouts", "status": "matched"}
             )
@@ -281,9 +317,8 @@ class Replay:
             if scenario == "compensation_loss_restart":
                 self.worker.restart()
             recovered = self.new.checkout(key="compensate", token="declined")
-            assert (
-                recovered.status_code == old.status_code == 402 and recovered.json() == old.json()
-            )
+            assert recovered.status_code == old.status_code == 402
+            self.compare_pair("recovered compensation", old, recovered)
             self.events.append({"action": "compensation failure then retry", "status": "matched"})
         elif scenario == "cancel_loss_restart":
             a, b = self.checkout(key="cancel-loss")
@@ -315,14 +350,15 @@ class Replay:
         self.successor.close()
 
 
-def evaluate(source: Path, output: Path, *, scenarios=SCENARIOS, trusted=False):
+def evaluate(source: Path | AdapterSource, output: Path, *, scenarios=SCENARIOS, trusted=False):
+    require_assertions()
+    adapter = AdapterSource.read(source)
     output.mkdir(parents=True, exist_ok=True)
     checker_path = Path(__file__)
     checker_hash, client_hash = (
         digest(checker_path),
         digest(Path(__file__).parent.parent / "apps/legacy_client.py"),
     )
-    original_checker = checker_path.read_bytes()
     rows = []
     for index, scenario in enumerate(scenarios):
         root = output / f"{index:02d}-{scenario}"
@@ -331,7 +367,7 @@ def evaluate(source: Path, output: Path, *, scenarios=SCENARIOS, trusted=False):
         started = time.perf_counter()
         record = {"scenario": scenario, "seed": 0, "status": "fail"}
         try:
-            replay = Replay(source, root, trusted=trusted)
+            replay = Replay(adapter, root, trusted=trusted)
             record["before"] = {
                 "v1": replay.baseline.app.state.store.snapshot(),
                 "v2": replay.successor.app.state.store.snapshot(),
@@ -349,7 +385,9 @@ def evaluate(source: Path, output: Path, *, scenarios=SCENARIOS, trusted=False):
             record["failure_kind"] = (
                 "worker_infrastructure"
                 if isinstance(error, WorkerFailure)
-                else "semantic_or_trial_error"
+                else "semantic_mismatch"
+                if isinstance(error, AssertionError)
+                else "trial_error"
             )
             record["mismatch"] = f"{type(error).__name__}: {error}"
         finally:
@@ -364,21 +402,22 @@ def evaluate(source: Path, output: Path, *, scenarios=SCENARIOS, trusted=False):
         rows.append(record)
         (root / "result.json").write_text(json.dumps(record, indent=2))
     if digest(checker_path) != checker_hash:
-        checker_path.write_bytes(original_checker)
-        raise RuntimeError("checker integrity violation; restored original")
+        raise RuntimeError("checker changed during evaluation")
     assert digest(Path(__file__).parent.parent / "apps/legacy_client.py") == client_hash, (
         "legacy client changed"
     )
     report = {
         "suite": "commerce",
-        "artifact_sha256": digest(source),
+        "artifact_sha256": adapter.sha256,
         "checker_sha256": checker_hash,
         "legacy_client_sha256": client_hash,
         "seed": 0,
         "scenarios": rows,
         "passed": sum(x["status"] == "pass" for x in rows),
         "total": len(rows),
-        "replay": f"parity validate --adapter {source.parent} --suite commerce",
+        "replay": shlex.join(
+            ["parity", "validate", "--adapter", str(adapter.path.parent), "--suite", "commerce"]
+        ),
     }
     (output / "evaluation.json").write_text(json.dumps(report, indent=2))
     return report

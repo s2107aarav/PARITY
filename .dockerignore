@@ -1,0 +1,12 @@
+**
+!Dockerfile
+!requirements.lock
+!pyproject.toml
+!apps/
+!apps/**
+!parity/
+!parity/**
+**/.env*
+**/__pycache__/
+**/*.py[cod]
+**/._*

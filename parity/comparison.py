@@ -2,20 +2,31 @@
 
 import copy
 import re
+from decimal import Decimal, InvalidOperation
+from fractions import Fraction
 
 from jsonschema import Draft202012Validator, FormatChecker
 from referencing import Registry
 
 from parity.contracts import operations, resolve_pointer
+from parity.http_values import finite_float, is_json_media_type, media_type
 
 
-def _invalid_json_constant(value):
-    raise ValueError(f"invalid JSON constant: {value}")
+def require_assertions():
+    if not __debug__:
+        raise RuntimeError("PARITY validation requires Python assertions. Disable optimized mode.")
 
 
-def _is_json_media_type(value):
-    media = value.split(";", 1)[0].strip().lower()
-    return media == "application/json" or media.endswith("+json")
+def exact_number(token):
+    approximate = finite_float(token)
+    try:
+        value = Decimal(token)
+    except InvalidOperation as exc:
+        raise ValueError("JSON number is out of range") from exc
+    if not approximate and value:
+        raise ValueError("JSON number is out of range")
+    number = Fraction(value)
+    return number.numerator if number.denominator == 1 else number
 
 
 def compare_json(expected, actual, path="$"):
@@ -32,7 +43,11 @@ def compare_json(expected, actual, path="$"):
         for index, (left, right) in enumerate(zip(expected, actual, strict=True)):
             compare_json(left, right, f"{path}[{index}]")
     else:
-        numeric = type(expected) in (int, float) and type(actual) in (int, float)
+        numeric = type(expected) in (int, float, Fraction) and type(actual) in (
+            int,
+            float,
+            Fraction,
+        )
         if (not numeric and type(expected) is not type(actual)) or expected != actual:
             raise AssertionError(
                 f"{path}: expected {expected!r} ({type(expected).__name__}), got {actual!r} ({type(actual).__name__})"
@@ -45,11 +60,20 @@ def operation_for(document, method, path):
     exact = candidates.get(f"{method.upper()} {path}")
     if exact is not None:
         return exact
+    matches = {}
     for name, operation in candidates.items():
         verb, template = name.split(" ", 1)
+        if verb != method.upper():
+            continue
         pattern = "[^/]+".join(re.escape(part) for part in re.split(r"\{[^}]+\}", template))
-        if verb == method.upper() and re.fullmatch(pattern, path):
-            return operation
+        if re.fullmatch(pattern, path):
+            matches[template] = operation
+    if len(matches) == 1:
+        return next(iter(matches.values()))
+    if matches:
+        raise AssertionError(
+            f"{method} {path}: ambiguous contract paths: {', '.join(sorted(matches))}"
+        )
     raise AssertionError(f"{method} {path}: operation absent from contract")
 
 
@@ -66,10 +90,29 @@ def _write_only(value, document):
     return False
 
 
+def _schema_value(value):
+    if isinstance(value, dict):
+        return {key: _schema_value(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_schema_value(item) for item in value]
+    return exact_number(str(value)) if type(value) is float else value
+
+
 def _schema(value, *, legacy=True, document=None):
     if not isinstance(value, dict):
         return value
     result = copy.deepcopy(value)
+    for key in (
+        "const",
+        "enum",
+        "minimum",
+        "maximum",
+        "exclusiveMinimum",
+        "exclusiveMaximum",
+        "multipleOf",
+    ):
+        if key in result:
+            result[key] = _schema_value(result[key])
     for key in ("properties", "patternProperties", "$defs", "definitions", "dependentSchemas"):
         if isinstance(result.get(key), dict):
             result[key] = {
@@ -149,7 +192,7 @@ def validate_response(document, method, path, response):
         if response.content:
             raise AssertionError(f"{method} {path}: response body absent from contract")
         return
-    media = response.headers.get("content-type", "").split(";", 1)[0].strip().lower()
+    media = media_type(response.headers.get("content-type", ""))
     definition = content.get(
         media, content.get("application/*+json") if media.endswith("+json") else None
     )
@@ -159,9 +202,9 @@ def validate_response(document, method, path, response):
         definition = content.get("*/*")
     if definition is None:
         raise AssertionError(f"{method} {path}: undocumented content type {media!r}")
-    if _is_json_media_type(media):
+    if is_json_media_type(media):
         try:
-            data = response.json(parse_constant=_invalid_json_constant)
+            data = response.json(parse_float=exact_number, parse_constant=finite_float)
         except ValueError as exc:
             raise AssertionError(f"{method} {path}: invalid JSON response") from exc
     else:
@@ -182,3 +225,4 @@ def validate_response(document, method, path, response):
             f"[{key}]" if isinstance(key, int) else f".{key}" for key in error.path
         )
         raise AssertionError(f"{method} {path} HTTP {status} {location}: {error.message}")
+    return data

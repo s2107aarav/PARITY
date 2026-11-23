@@ -1,11 +1,11 @@
 """Fail-closed execution for generated modules. AST filtering is defense in depth only."""
 
 import ast
+import fcntl
 import hashlib
 import json
 import os
 import platform
-import resource
 import shutil
 import signal
 import socket
@@ -14,14 +14,33 @@ import sys
 import tempfile
 import threading
 import time
+from contextlib import ExitStack
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, TextIO
+from typing import TextIO
 
 import httpx
 
 
 def digest(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+@dataclass(frozen=True)
+class AdapterSource:
+    path: Path
+    content: bytes
+
+    @classmethod
+    def read(cls, source: "AdapterSource | Path | str") -> "AdapterSource":
+        if isinstance(source, AdapterSource):
+            return source
+        path = Path(source).resolve()
+        return cls(path, path.read_bytes())
+
+    @property
+    def sha256(self) -> str:
+        return hashlib.sha256(self.content).hexdigest()
 
 
 def check_source(source: str):
@@ -47,7 +66,10 @@ def check_source(source: str):
             modules = (
                 [node.module] if isinstance(node, ast.ImportFrom) else [x.name for x in node.names]
             )
-            if any(x not in {"parity.runtime", "json", "hashlib", "re", "math"} for x in modules):
+            if any(
+                x not in {"parity.runtime", "urllib.parse", "json", "hashlib", "re", "math"}
+                for x in modules
+            ):
                 raise ValueError("plugin import outside allowed surface")
             if isinstance(node, ast.ImportFrom) and node.level:
                 raise ValueError("plugin relative imports are not allowed")
@@ -56,6 +78,11 @@ def check_source(source: str):
                 or any(alias.name != "UpstreamError" for alias in node.names)
             ):
                 raise ValueError("plugin may only import UpstreamError from parity.runtime")
+            if "urllib.parse" in modules and (
+                not isinstance(node, ast.ImportFrom)
+                or any(alias.name not in {"quote", "unquote"} for alias in node.names)
+            ):
+                raise ValueError("plugin may only import quote and unquote from urllib.parse")
         if isinstance(node, ast.Name) and (node.id in forbidden or node.id.startswith("__")):
             raise ValueError("plugin uses forbidden builtin")
         if isinstance(node, ast.Attribute) and (
@@ -104,16 +131,6 @@ class WorkerFailure(RuntimeError):
     """Infrastructure/resource failure, distinct from semantic incompatibility."""
 
 
-def _limits():
-    resource.setrlimit(resource.RLIMIT_CPU, (25, 25))
-    resource.setrlimit(resource.RLIMIT_NOFILE, (128, 128))
-    resource.setrlimit(resource.RLIMIT_FSIZE, (32 * 1024 * 1024, 32 * 1024 * 1024))
-    if sys.platform.startswith("linux"):
-        # AS includes interpreter mappings and reserved pthread stacks, not just live memory.
-        ceiling = int(RESOURCE_POLICY["linux_address_space_bytes"])
-        resource.setrlimit(resource.RLIMIT_AS, (ceiling, ceiling))
-
-
 def resident_bytes(pid: int) -> int:
     if sys.platform.startswith("linux"):
         # Include descendants even if they create a new session/process group.
@@ -157,58 +174,74 @@ def resident_bytes(pid: int) -> int:
 
 class AdapterProcess:
     def __init__(
-        self, source: Path, upstream: str, root: Path, *, trusted=False, trace_bodies=True
+        self,
+        source: Path | AdapterSource,
+        upstream: str,
+        root: Path,
+        *,
+        trusted=False,
+        trace_bodies=True,
     ):
-        check_source(source.read_text())
+        source_bytes = AdapterSource.read(source).content
+        check_source(source_bytes.decode("utf-8"))
         self.root = root.resolve()
         self.root.mkdir(parents=True, exist_ok=True)
-        (self.root / "state").mkdir(exist_ok=True)
-        package = self.root / "parity"
-        package.mkdir(exist_ok=True)
-        (package / "__init__.py").write_text("")
-        for name in ("runtime.py", "storage.py", "worker.py"):
-            shutil.copyfile(Path(__file__).parent / name, package / name)
-        shutil.copyfile(source, self.root / "adapter.py")
-        self.port = free_port()
-        self.url = f"http://127.0.0.1:{self.port}"
-        self.relays: list[Any] = []
-        self.sockets = None
-        config = {"upstream": upstream, "port": self.port, "trace_bodies": trace_bodies}
-        if sys.platform.startswith("linux") and shutil.which("bwrap"):
-            from parity.relay import relay_app
-            from parity.serving import Server
-
-            self.sockets = tempfile.TemporaryDirectory(prefix="parity-sockets-", dir="/tmp")
-            socket_root = Path(self.sockets.name)
-            config["upstream_socket"] = str(socket_root / "upstream")
-            config["listen_socket"] = str(socket_root / "worker")
-            try:
-                self.relays.append(
-                    Server(relay_app(upstream), socket_path=config["upstream_socket"])
-                )
-                self.relays.append(
-                    Server(relay_app("http://worker", socket_path=config["listen_socket"]))
-                )
-                self.url = self.relays[-1].url
-            except BaseException:
-                for relay in self.relays:
-                    relay.close()
-                self.sockets.cleanup()
-                raise
-        (self.root / "config.json").write_text(json.dumps(config))
+        self.resources = ExitStack()
+        self.closed = False
+        self.sockets: Path | None = None
         self.trusted = trusted
         self.proc: subprocess.Popen | None = None
         self.log: TextIO | None = None
         self.monitor_stop = threading.Event()
         self.monitor_thread: threading.Thread | None = None
         try:
-            self.start()
+            lease = self.resources.enter_context((self.root / "worker.lock").open("a"))
+            try:
+                fcntl.flock(lease, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError as exc:
+                raise WorkerFailure("Adapter runtime is already in use") from exc
+            self._prepare(source_bytes, upstream, trace_bodies)
+            self._start()
         except (OSError, subprocess.SubprocessError) as exc:
             self.close()
             raise WorkerFailure(f"Adapter could not start: {exc}") from exc
         except BaseException:
             self.close()
             raise
+
+    def _prepare(self, source_bytes, upstream, trace_bodies):
+        (self.root / "state").mkdir(exist_ok=True)
+        package = self.root / "parity"
+        package.mkdir(exist_ok=True)
+        (package / "__init__.py").write_text("")
+        for name in ("http_values.py", "runtime.py", "storage.py", "worker.py"):
+            shutil.copyfile(Path(__file__).parent / name, package / name)
+        (self.root / "adapter.py").write_bytes(source_bytes)
+        self.port = free_port()
+        self.url = f"http://127.0.0.1:{self.port}"
+        config = {
+            "upstream": upstream,
+            "port": self.port,
+            "trace_bodies": trace_bodies,
+            "limits": RESOURCE_POLICY,
+        }
+        if sys.platform.startswith("linux") and shutil.which("bwrap"):
+            from parity.relay import relay_app
+            from parity.serving import Server
+
+            self.sockets = Path(
+                self.resources.enter_context(
+                    tempfile.TemporaryDirectory(prefix="parity-sockets-", dir="/tmp")
+                )
+            )
+            config["upstream_socket"] = str(self.sockets / "upstream")
+            config["listen_socket"] = str(self.sockets / "worker")
+            upstream_relay = Server(relay_app(upstream), socket_path=config["upstream_socket"])
+            self.resources.callback(upstream_relay.close)
+            client_relay = Server(relay_app("http://worker", socket_path=config["listen_socket"]))
+            self.resources.callback(client_relay.close)
+            self.url = client_relay.url
+        (self.root / "config.json").write_text(json.dumps(config))
 
     def command(self):
         cmd = [sys.executable, "-s", "-B", "-m", "parity.worker"]
@@ -244,7 +277,7 @@ class AdapterProcess:
             (self.root / "sandbox.sb").write_text(profile)
             self.isolation = "macOS Seatbelt; explicit read roots; loopback upstream only"
             return ["sandbox-exec", "-f", str(self.root / "sandbox.sb"), *cmd]
-        if shutil.which("bwrap"):
+        if sys.platform.startswith("linux") and shutil.which("bwrap"):
             # Library mounts only; evaluator and artifacts directories are not mounted.
             args = [
                 "bwrap",
@@ -273,9 +306,10 @@ class AdapterProcess:
             ):
                 if Path(path).exists() and not path.startswith("/usr/"):
                     args += ["--ro-bind", path, path]
-            args += ["--bind", str(self.root), str(self.root), "--chdir", str(self.root)]
+            root, state = str(self.root), str(self.root / "state")
+            args += ["--ro-bind", root, root, "--bind", state, state, "--chdir", root]
             if self.sockets:
-                args += ["--bind", self.sockets.name, self.sockets.name]
+                args += ["--bind", str(self.sockets), str(self.sockets)]
             self.isolation = "bubblewrap filesystem/pid/network isolation; Unix-socket HTTP relay"
             return [*args, *cmd]
         if not self.trusted:
@@ -285,7 +319,7 @@ class AdapterProcess:
         self.isolation = "trusted reference only; subprocess resource limits"
         return cmd
 
-    def start(self):
+    def _start(self):
         self.monitor_stop.clear()
         (self.root / "termination.json").unlink(missing_ok=True)
         command = self.command()
@@ -297,7 +331,6 @@ class AdapterProcess:
             stdout=self.log,
             stderr=subprocess.STDOUT,
             start_new_session=True,
-            preexec_fn=_limits,
         )
         proc = self.proc
         (self.root / "resources.json").write_text(
@@ -317,7 +350,10 @@ class AdapterProcess:
 
         def monitor():
             started = time.monotonic()
-            while not self.monitor_stop.wait(0.25) and proc.poll() is None:
+            while (
+                not self.monitor_stop.wait(RESOURCE_POLICY["rss_poll_seconds"])
+                and proc.poll() is None
+            ):
                 reason = (
                     "wall_time"
                     if time.monotonic() - started > RESOURCE_POLICY["wall_seconds"]
@@ -353,10 +389,9 @@ class AdapterProcess:
                 except httpx.HTTPError:
                     pass
                 time.sleep(0.05)
-        self.close()
         raise WorkerFailure(
             f"Adapter did not start (exit={self.proc.returncode}): "
-            + (self.root / "worker.log").read_text()[-5000:]
+            + (self.root / "worker.log").read_text(errors="replace")[-5000:]
         )
 
     def ensure_alive(self):
@@ -370,17 +405,27 @@ class AdapterProcess:
             raise WorkerFailure(f"worker infrastructure/resource failure: {reason}")
 
     def restart(self):
-        self.close(keep_relays=True)
-        config = json.loads((self.root / "config.json").read_text())
-        if config.get("listen_socket"):
-            Path(config["listen_socket"]).unlink(missing_ok=True)
+        if self.closed:
+            raise WorkerFailure("Adapter runtime has been closed")
         try:
-            self.start()
+            self._stop_worker()
+            if self.sockets:
+                (self.sockets / "worker").unlink(missing_ok=True)
+            self._start()
         except BaseException:
             self.close()
             raise
 
-    def close(self, *, keep_relays=False):
+    def close(self):
+        if self.closed:
+            return
+        self.closed = True
+        try:
+            self._stop_worker()
+        finally:
+            self.resources.close()
+
+    def _stop_worker(self):
         self.monitor_stop.set()
         if self.monitor_thread:
             self.monitor_thread.join(timeout=3)
@@ -401,14 +446,11 @@ class AdapterProcess:
             self.proc.wait()
         if self.log:
             self.log.close()
-        if not keep_relays:
-            for relay in self.relays:
-                relay.close()
-            self.relays.clear()
-            if self.sockets:
-                self.sockets.cleanup()
 
     def kill(self):
         if self.proc and self.proc.poll() is None:
-            os.killpg(self.proc.pid, signal.SIGKILL)
+            try:
+                os.killpg(self.proc.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
             self.proc.wait()

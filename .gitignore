@@ -20,5 +20,6 @@ artifacts/reports/
 **/worker/config.json
 **/worker/sandbox.sb
 **/worker/worker.log
+**/worker/worker.lock
 **/worker/state/adapter.lock
 *.zip

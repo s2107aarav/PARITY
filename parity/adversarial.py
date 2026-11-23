@@ -4,10 +4,11 @@ import json
 from pathlib import Path
 
 from parity.replay import evaluate
+from parity.sandbox import AdapterSource
 
 
-def mutants(reference: Path):
-    healthy = reference.read_text()
+def mutants(reference: Path | AdapterSource):
+    healthy = AdapterSource.read(reference).content.decode("utf-8")
     return {
         "symptom_only_success": """def handle(ctx, method, path, body, query, headers):
     if method == "POST" and path == "/checkout":
@@ -49,7 +50,7 @@ def handle(ctx, method, path, body, query, headers):
     }
 
 
-def calibrate(reference: Path, output: Path):
+def calibrate(reference: Path | AdapterSource, output: Path):
     output.mkdir(parents=True, exist_ok=True)
     rows = []
     for name, source in mutants(reference).items():
@@ -66,7 +67,7 @@ def calibrate(reference: Path, output: Path):
             {
                 "mutant": name,
                 "rejected": report["passed"] == 0
-                and report["scenarios"][0].get("failure_kind") != "worker_infrastructure",
+                and report["scenarios"][0].get("failure_kind") == "semantic_mismatch",
                 "mismatch": report["scenarios"][0].get("mismatch"),
                 "artifact": str(candidate),
             }

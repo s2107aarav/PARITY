@@ -2,6 +2,7 @@ from fastapi.testclient import TestClient
 
 from apps.moderated import new_app
 from parity.moderated_replay import evaluate
+from parity.resources import examples
 
 
 def test_approval_is_real_required_and_idempotent(tmp_path):
@@ -33,3 +34,23 @@ def test_fresh_checker_rejects_fabricated_success(tmp_path):
     )
     result = evaluate(source, tmp_path / "negative")
     assert result["passed"] == 0 and result["total"] == 4
+
+
+def test_generated_adapter_preserves_approval_and_publication(tmp_path):
+    source = examples() / "artifacts/generated/moderated-release-001/adapter.py"
+    result = evaluate(source, tmp_path / "moderated")
+    assert result["passed"] == result["total"] == 4, result
+
+
+def test_checker_rejects_wrong_retry_status_with_an_unchanged_body(tmp_path):
+    artifact = examples() / "artifacts/generated/moderated-release-001/adapter.py"
+    source = tmp_path / "wrong_retry_status.py"
+    source.write_text(
+        artifact.read_text().replace("return 201, state['result']", "return 200, state['result']")
+    )
+    result = evaluate(source, tmp_path / "wrong-retry-status")
+    assert result["passed"] == 0
+    assert all(
+        row["mismatch"] == "AssertionError: retry HTTP status mismatch"
+        for row in result["scenarios"]
+    )

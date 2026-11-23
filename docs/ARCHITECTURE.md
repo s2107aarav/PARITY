@@ -2,7 +2,7 @@
 
 PARITY runs user-owned staging projects and reproducible bundled examples. Both use real HTTP. A project supplies contracts, endpoint configuration, trusted Python scenarios, and optional business assertions.
 
-`project.py` owns configuration and scenario lifecycle. `comparison.py` validates response schemas and compares JSON without confusing booleans and numbers. Identifier normalization is explicit and bijective. Reports identify unchecked business effects and record contract, scenario, and adapter fingerprints.
+`project.py` owns configuration and scenario lifecycle. `comparison.py` validates response schemas and compares JSON without confusing booleans and numbers. Identifier normalization is explicit and bijective. Reports identify unchecked business effects and fingerprint the inputs loaded for validation. All workers in an evaluation use the same adapter bytes, and the demo verifies its displayed source against the replay result.
 
 `agent.py` runs a bounded plan/source/diagnostic loop. It receives contracts, notes, deltas, and results, but not scenario source or private assertions. `plans.py` checks structural references; Python implements the migration. Atomic run metadata and recorded provider responses support interruption and continuation.
 

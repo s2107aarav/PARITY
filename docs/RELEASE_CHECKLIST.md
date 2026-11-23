@@ -11,7 +11,7 @@ make demo
 
 Tests cover an installed wheel outside the checkout, external-project requests, response schemas, credential isolation, recovery, interrupted generation, bundled replay, and OS isolation. CI runs on macOS and Linux; Linux needs bubblewrap and unprivileged namespace support.
 
-Refresh current engine fingerprints in `artifacts/pins.json` when intentionally changing pinned source. Preserve example source/plan bytes and recorded model responses. Full historical transcripts remain in Git history; private archives and new runs belong under ignored `.parity`.
+Refresh fingerprints in `artifacts/pins.json` when intentionally changing pinned engine files, and refresh the matching manifest when updating a maintained reference adapter. Preserve recorded model submissions, plans, and generated sources. Private archives and new runs belong under ignored `.parity`.
 
 `scripts/package_release.py` creates a public ZIP and redaction ledger. Inspect it before distribution: credentials, databases, caches, environments, and private workspaces must be excluded. Redacted transcripts intentionally have different hashes; source and plans retain their original bytes.
 

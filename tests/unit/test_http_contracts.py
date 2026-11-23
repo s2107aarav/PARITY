@@ -3,7 +3,7 @@ import json
 import httpx
 import pytest
 
-from parity.comparison import compare_json, validate_response
+from parity.comparison import compare_json, operation_for, validate_response
 from parity.runtime import Context, UpstreamError
 
 
@@ -89,6 +89,48 @@ def test_imported_ids_are_bijective_and_advance_allocator(tmp_path):
         ctx.close()
 
 
+def test_an_older_result_cannot_overwrite_a_newer_pending_attempt(tmp_path):
+    ctx = Context("http://upstream", str(tmp_path / "adapter.db"))
+    request = ("POST", "/items", {"quantity": 2}, {}, {"idempotency-key": "same"})
+    try:
+        older = ctx.record_request(*request)
+        newer = ctx.record_request(*request)
+        ctx.record_result(newer, "pending", http_status=503)
+        ctx.record_result(older, "completed", http_status=201)
+        workflows = list(ctx.store.snapshot()["workflows"].values())
+        assert len(workflows) == 1
+        assert workflows[0]["status"] == "pending"
+        assert workflows[0]["http_status"] == 503
+    finally:
+        ctx.close()
+
+
+def test_resubmitting_original_request_refreshes_an_older_workflow(tmp_path):
+    ctx = Context("http://upstream", str(tmp_path / "adapter.db"))
+    request = {
+        "method": "POST",
+        "path": "/items",
+        "body": {"quantity": 2},
+        "query": {},
+        "headers": {"idempotency-key": "same"},
+    }
+    key = ctx.digest(request)
+    try:
+        with ctx.store.transaction() as tx:
+            tx.put("workflows", key, {"id": key, "status": "pending", "request": request})
+        headers = {**request["headers"], "accept": "application/json"}
+        for status in ("pending", "completed"):
+            attempt = ctx.record_request("POST", "/items", request["body"], {}, headers)
+            assert attempt[0] == key
+            ctx.record_result(attempt, status)
+        workflows = ctx.store.snapshot()["workflows"]
+        assert list(workflows) == [key]
+        assert workflows[key]["request"]["headers"] == headers
+        assert workflows[key]["status"] == "completed"
+    finally:
+        ctx.close()
+
+
 @pytest.mark.parametrize("invalid", [None, [], ["id"], "id", 42])
 def test_id_mapping_documents_must_be_objects(tmp_path, invalid):
     ctx = Context("http://upstream", str(tmp_path / "adapter.db"))
@@ -163,12 +205,91 @@ def response_document(schema, *, version="3.1.0", media="application/json"):
     }
 
 
-@pytest.mark.parametrize("literal", ["NaN", "Infinity", "-Infinity"])
-def test_response_contract_rejects_non_json_numeric_constants(literal):
+def test_contract_prefers_literal_paths_and_rejects_overlapping_templates():
+    path = "/items/special/detail"
+    templates = ["/items/{id}/detail", "/items/special/{field}"]
+    get = {"get": {"responses": {"200": {}}}}
+    document = {"paths": dict.fromkeys(templates, get)}
+    assert operation_for(document, "GET", "/items/123/detail")["pointer"].endswith(
+        "{id}~1detail/get"
+    )
+    for order in (templates, templates[::-1]):
+        document = {"paths": dict.fromkeys(order, get)}
+        with pytest.raises(AssertionError, match="ambiguous contract paths"):
+            operation_for(document, "GET", path)
+        document["paths"][path] = {"get": {"operationId": "literal", **get["get"]}}
+        assert operation_for(document, "GET", path + "?detail=true")["operationId"] == "literal"
+
+
+@pytest.mark.parametrize("literal", ["NaN", "Infinity", "-Infinity", "1e400", "-1e400", "1e-400"])
+def test_response_contract_rejects_invalid_or_out_of_range_numbers(literal):
     document = response_document({"type": "number"})
     response = httpx.Response(200, content=literal, headers={"content-type": "application/json"})
     with pytest.raises(AssertionError, match="invalid JSON response"):
         validate_response(document, "GET", "/value", response)
+
+
+def test_schema_checks_decimal_multiples_and_fractional_integers_exactly():
+    headers = {"content-type": "application/json"}
+    document = response_document({"type": "number", "multipleOf": 0.01})
+    validate_response(
+        document, "GET", "/value", httpx.Response(200, content="0.29", headers=headers)
+    )
+    with pytest.raises(AssertionError, match="not a multiple"):
+        validate_response(
+            document,
+            "GET",
+            "/value",
+            httpx.Response(200, content="0.2900000000000000001", headers=headers),
+        )
+    document = response_document({"type": "integer"})
+    validate_response(
+        document, "GET", "/value", httpx.Response(200, content="1.0", headers=headers)
+    )
+    with pytest.raises(AssertionError, match="not of type 'integer'"):
+        validate_response(
+            document,
+            "GET",
+            "/value",
+            httpx.Response(200, content="1.0000000000000000001", headers=headers),
+        )
+
+
+def test_paired_requests_compare_numbers_and_contract_bounds_at_wire_precision(tmp_path):
+    from parity.project import Case, Project
+
+    exact = "1.00000000000000001"
+    document = response_document({"type": "number", "minimum": "BOUND"})
+    document["info"] = {"title": "Values", "version": "1"}
+    (tmp_path / "contract.json").write_text(json.dumps(document).replace('"BOUND"', exact))
+    config = {
+        "name": "values",
+        **{
+            side: {"schema": "contract.json", "base_url": f"http://{side}"}
+            for side in ("old", "new")
+        },
+    }
+    (tmp_path / "parity.json").write_text(json.dumps(config))
+    project = Project(tmp_path / "parity.json")
+
+    def client(number):
+        return httpx.Client(
+            base_url="http://api",
+            transport=httpx.MockTransport(
+                lambda request: httpx.Response(
+                    200, content=number, headers={"content-type": "application/json"}
+                )
+            ),
+        )
+
+    with client(exact) as old, client(exact + "0") as new:
+        Case(project, old, new).request("GET", "/value")
+    with client(exact) as old, client("1.00000000000000002") as new:
+        with pytest.raises(AssertionError, match=r"\$.*expected.*got"):
+            Case(project, old, new).request("GET", "/value")
+    with client(exact) as old, client("1.00000000000000000") as new:
+        with pytest.raises(AssertionError, match="less than the minimum"):
+            Case(project, old, new).request("GET", "/value")
 
 
 def test_contract_media_type_keys_are_case_insensitive():
@@ -217,6 +338,34 @@ def test_paired_requests_use_media_types_for_json_comparison(media):
         ) as new,
     ):
         assert Case(project, old, new).request("GET", "/value").new.status_code == 200
+
+
+def test_paired_requests_compare_cookie_field_lines():
+    from types import SimpleNamespace
+
+    from parity.project import Case
+
+    document = response_document({"type": "object"})
+    settings = SimpleNamespace(allow_writes=False, id_fields=[], compare_headers=["set-cookie"])
+    project = SimpleNamespace(settings=settings, old=document, new=document)
+    with (
+        httpx.Client(
+            base_url="http://old",
+            transport=httpx.MockTransport(
+                lambda request: httpx.Response(
+                    200, json={}, headers=[("set-cookie", "a=1"), ("set-cookie", "b=2")]
+                )
+            ),
+        ) as old,
+        httpx.Client(
+            base_url="http://new",
+            transport=httpx.MockTransport(
+                lambda request: httpx.Response(200, json={}, headers={"set-cookie": "a=1, b=2"})
+            ),
+        ) as new,
+    ):
+        with pytest.raises(AssertionError, match="set-cookie header differs"):
+            Case(project, old, new).request("GET", "/value")
 
 
 def test_plain_text_that_looks_like_json_is_preserved(tmp_path):

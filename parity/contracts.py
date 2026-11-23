@@ -3,11 +3,17 @@
 import json
 from pathlib import Path
 
+from parity.http_values import finite_float
+
 METHODS = {"get", "post", "put", "patch", "delete", "head", "options", "trace"}
 
 
 def load(path: Path) -> dict:
-    value = json.loads(path.read_text())
+    return parse(path.read_bytes())
+
+
+def parse(raw: bytes, *, parse_float=finite_float) -> dict:
+    value = json.loads(raw, parse_float=parse_float, parse_constant=finite_float)
     if (
         not isinstance(value, dict)
         or not str(value.get("openapi", "")).startswith("3.")
@@ -152,6 +158,7 @@ def payload_fields(operation, section):
 
 def analyze(old: dict, new: dict):
     left, right = operations(old), operations(new)
+    matched = set(left) & set(right)
     changes = []
     for section in ("security", "servers", "securitySchemes"):
         before, after = (
@@ -175,18 +182,11 @@ def analyze(old: dict, new: dict):
                 }
             )
     for name, op in left.items():
-        match = (
-            name
-            if name in right
-            else next(
-                (
-                    k
-                    for k, v in right.items()
-                    if op.get("operationId") and v.get("operationId") == op["operationId"]
-                ),
-                None,
-            )
-        )
+        match = name if name in right else None
+        if match is None and (operation_id := op.get("operationId")):
+            candidates = [k for k, v in right.items() if v.get("operationId") == operation_id]
+            if len(candidates) == 1 and candidates[0] not in matched:
+                match = candidates[0]
         sources = [{"document": "old", "pointer": op["pointer"]}]
         if match is None:
             changes.append(
@@ -200,6 +200,7 @@ def analyze(old: dict, new: dict):
             )
             continue
         candidate = right[match]
+        matched.add(match)
         sources.append({"document": "new", "pointer": candidate["pointer"]})
         if match != name:
             changes.append(
@@ -268,7 +269,7 @@ def analyze(old: dict, new: dict):
                         "certainty": "requires_behavioral_evidence",
                     }
                 )
-    added = sorted(set(right) - set(left))
+    added = sorted(set(right) - matched)
     return {
         "schema_version": 1,
         "old": old["info"],

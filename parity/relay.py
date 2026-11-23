@@ -6,19 +6,7 @@ import httpx
 from fastapi import FastAPI, Request
 from fastapi.responses import Response
 
-HOP_HEADERS = {
-    "host",
-    "connection",
-    "content-length",
-    "transfer-encoding",
-    "content-encoding",
-    "keep-alive",
-    "proxy-authenticate",
-    "proxy-authorization",
-    "te",
-    "trailer",
-    "upgrade",
-}
+from parity.http_values import DECODED_BODY_HEADERS, HOP_HEADERS, connection_tokens
 
 
 def relay_app(target, *, headers=None, socket_path=None, timeout=10, allow_writes=True):
@@ -51,9 +39,10 @@ def relay_app(target, *, headers=None, socket_path=None, timeout=10, allow_write
             if len(body) > 1024 * 1024:
                 return Response(status_code=413)
         blocked = (
-            (HOP_HEADERS - {"content-encoding"})
+            HOP_HEADERS
+            | {"content-length"}
             | {name.lower() for name in (headers or {})}
-            | {name.strip().lower() for name in request.headers.get("connection", "").split(",")}
+            | connection_tokens(request.headers)
         )
         incoming = [
             (key, value) for key, value in request.headers.items() if key.lower() not in blocked
@@ -79,11 +68,10 @@ def relay_app(target, *, headers=None, socket_path=None, timeout=10, allow_write
                         content.extend(chunk)
                         if len(content) > 1024 * 1024:
                             return Response("Upstream response exceeds 1 MiB", status_code=502)
-                    excluded = HOP_HEADERS | {
-                        name.strip().lower()
-                        for name in result.headers.get("connection", "").split(",")
-                    }
+                    excluded = DECODED_BODY_HEADERS | connection_tokens(result.headers)
                     response = Response(bytes(content), status_code=result.status_code)
+                    if request.method == "HEAD" and "content-length" in result.headers:
+                        response.headers["content-length"] = result.headers["content-length"]
                     response.raw_headers.extend(
                         (key, value)
                         for key, value in result.headers.raw

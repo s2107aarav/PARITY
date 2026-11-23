@@ -7,16 +7,18 @@ from pathlib import Path
 import httpx
 
 from apps.transfer import create_v1, create_v2
-from parity.comparison import compare_json, validate_response
+from parity.comparison import compare_json, require_assertions, validate_response
 from parity.contracts import load
 from parity.resources import examples
-from parity.sandbox import AdapterProcess, WorkerFailure, digest
+from parity.sandbox import AdapterProcess, AdapterSource, WorkerFailure, digest
 from parity.serving import Server
 
 SCENARIOS = ("ordinary", "retry", "publish_loss_restart", "conflict", "validation", "concurrent")
 
 
-def evaluate(source: Path, output: Path, *, trusted=False):
+def evaluate(source: Path | AdapterSource, output: Path, *, trusted=False):
+    require_assertions()
+    adapter = AdapterSource.read(source)
     output.mkdir(parents=True, exist_ok=True)
     results = []
     checker_hash = digest(Path(__file__))
@@ -30,7 +32,7 @@ def evaluate(source: Path, output: Path, *, trusted=False):
         actions: list[dict] = []
         record = {"scenario": scenario, "seed": 0, "status": "fail"}
         try:
-            worker = AdapterProcess(source, new.url, root / "worker", trusted=trusted)
+            worker = AdapterProcess(adapter, new.url, root / "worker", trusted=trusted)
             with (
                 httpx.Client(base_url=old.url, trust_env=False, timeout=15) as left,
                 httpx.Client(base_url=worker.url, trust_env=False, timeout=15) as right,
@@ -51,13 +53,14 @@ def evaluate(source: Path, output: Path, *, trusted=False):
                         }
                     )
                     assert a.status_code == b.status_code, "HTTP mismatch"
-                    for response in (a, b):
+                    expected, actual = (
                         validate_response(
                             contract, response.request.method, response.request.url.path, response
                         )
-                    expected, actual = a.json(), b.json()
+                        for response in (a, b)
+                    )
                     if "id" in expected:
-                        assert type(actual.get("id")) is int and actual["id"] > 0
+                        assert type(b.json().get("id")) is int and actual["id"] > 0
                         old_id, new_id = expected["id"], actual["id"]
                         assert old_id not in ids or ids[old_id] == new_id, (
                             "unstable ID correspondence"
@@ -149,7 +152,7 @@ def evaluate(source: Path, output: Path, *, trusted=False):
     report = {
         "suite": "transfer",
         "seed": 0,
-        "artifact_sha256": digest(source),
+        "artifact_sha256": adapter.sha256,
         "checker_sha256": checker_hash,
         "scenarios": results,
         "passed": sum(x["status"] == "pass" for x in results),

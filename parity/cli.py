@@ -22,29 +22,37 @@ from parity.oneshot import generate as single_shot_generate
 from parity.project import Project, initialize
 from parity.providers import CodexProvider, OpenAIProvider
 from parity.replay import SCENARIOS, evaluate
-from parity.report import render
+from parity.report import demo_passed, render
 from parity.resources import examples, workspace
-from parity.sandbox import digest
+from parity.sandbox import AdapterSource
 from parity.serving import Server
 from parity.transfer_replay import evaluate as evaluate_transfer
 
 PROJECT = examples()
 
 
-def artifact_path(value: str):
+def load_artifact(value: str | Path):
     path = Path(value)
     if not path.exists():
-        path = PROJECT / "artifacts/generated" / value
+        root = PROJECT / "artifacts"
+        path = root / value
+        if not path.exists():
+            path = root / "generated" / value
     if path.is_file():
         path = path.parent
     if not (path / "adapter.py").is_file():
         raise ValueError("artifact must contain adapter.py")
+    source = AdapterSource.read(path / "adapter.py")
     manifest = path / "manifest.json"
     if manifest.exists():
         expected = json.loads(manifest.read_text()).get("adapter_sha256")
-        if expected and expected != digest(path / "adapter.py"):
+        if expected and expected != source.sha256:
             raise ValueError("artifact digest mismatch; refusing modified pinned source")
-    return path.resolve()
+    return path.resolve(), source
+
+
+def artifact_path(value: str):
+    return load_artifact(value)[0]
 
 
 def fresh_output(prefix):
@@ -83,12 +91,13 @@ def demo(artifact, output, transfer_artifact=None, single_shot_artifact=None):
         f"Legacy client → V1: HTTP {broken['v1_status']}; unchanged client → V2: HTTP {broken['v2_status']}",
         flush=True,
     )
+    reference = load_artifact(PROJECT / "artifacts/reference/commerce")[1]
     for name, role, source in (
-        ("PARITY / authenticated generated artifact", "parity", artifact / "adapter.py"),
+        ("PARITY / selected adapter", "parity", load_artifact(artifact)[1]),
         (
             "Manual reference / correctness calibration",
             "reference",
-            PROJECT / "artifacts/reference/commerce/adapter.py",
+            reference,
         ),
         (
             "Rules-only operationId mapping",
@@ -105,9 +114,7 @@ def demo(artifact, output, transfer_artifact=None, single_shot_artifact=None):
         evidence.append({"name": name, "role": role, "report": report})
         print(f"  {report['passed']}/{report['total']} semantic workflows passed", flush=True)
     print("Calibrating checker against five deliberately defective adapters…", flush=True)
-    calibration = calibrate(
-        PROJECT / "artifacts/reference/commerce/adapter.py", output / "calibration"
-    )
+    calibration = calibrate(reference, output / "calibration")
     print(f"  {calibration['rejected']}/{calibration['total']} rejected", flush=True)
     transfer_artifact = transfer_artifact or artifact_path("transfer-live-001")
     transfer_manifest = transfer_artifact / "manifest.json"
@@ -117,7 +124,7 @@ def demo(artifact, output, transfer_artifact=None, single_shot_artifact=None):
         else "manually-authored-reference"
     )
     print(f"Replaying transfer / {transfer_provenance}…", flush=True)
-    transfer = evaluate_transfer(transfer_artifact / "adapter.py", output / "transfer")
+    transfer = evaluate_transfer(load_artifact(transfer_artifact)[1], output / "transfer")
     evidence.append(
         {
             "name": "Ticketing transfer / " + transfer_provenance,
@@ -143,7 +150,7 @@ def demo(artifact, output, transfer_artifact=None, single_shot_artifact=None):
             (output / "single-shot").mkdir()
             (output / "single-shot/evaluation.json").write_text(json.dumps(report, indent=2))
         else:
-            report = evaluate(single_shot_artifact / "adapter.py", output / "single-shot")
+            report = evaluate(load_artifact(single_shot_artifact)[1], output / "single-shot")
         evidence.append(
             {
                 "name": "Single-shot LLM / no generation feedback",
@@ -175,11 +182,7 @@ def demo(artifact, output, transfer_artifact=None, single_shot_artifact=None):
     (workspace() / "reports/LATEST").write_text(latest + "\n")
     print(f"Report: {output / 'index.html'}", flush=True)
     print(data["summary"]["status"], flush=True)
-    healthy = [x["report"] for x in evidence if x["role"] in {"parity", "reference", "transfer"}]
-    return (
-        all(x["passed"] == x["total"] for x in healthy)
-        and calibration["rejected"] == calibration["total"]
-    )
+    return demo_passed(evidence, calibration)
 
 
 def parser():
@@ -318,7 +321,7 @@ def main():
                 raise SystemExit(2)
         elif args.command == "validate":
             if project:
-                source = artifact_path(args.adapter) / "adapter.py" if args.adapter else None
+                source = load_artifact(args.adapter)[1] if args.adapter else None
                 report = project.validate(source, args.out)
                 print(
                     f"{report['passed']}/{report['total']} scenarios passed; business effects: {report['business_effects']}"
@@ -332,13 +335,13 @@ def main():
                 return
             if not args.adapter:
                 raise ValueError("--adapter is required without --project")
-            artifact = artifact_path(args.adapter)
+            _, source = load_artifact(args.adapter)
             fn = {
                 "commerce": evaluate,
                 "transfer": evaluate_transfer,
                 "moderated": evaluate_moderated,
             }[args.suite]
-            report = fn(artifact / "adapter.py", args.out or fresh_output(args.suite))
+            report = fn(source, args.out or fresh_output(args.suite))
             print(
                 f"{report['passed']}/{report['total']} passed; source SHA256 {report.get('artifact_sha256', report.get('source_sha256'))}"
             )
@@ -361,14 +364,14 @@ def main():
             uvicorn.run(factory(args.db), host=args.host, port=args.port, log_level="info")
         elif args.command == "status":
             assert project is not None
-            source = artifact_path(args.adapter) / "adapter.py"
+            _, source = load_artifact(args.adapter)
             for row in project.workflows(source):
                 print(
                     f"{row['id']} {row['status']} {row['stage']} HTTP {row.get('http_status', '?')}"
                 )
         elif args.command == "retry":
             assert project is not None
-            result = project.retry(artifact_path(args.adapter) / "adapter.py", args.request)
+            result = project.retry(load_artifact(args.adapter)[1], args.request)
             print(json.dumps(result, indent=2))
             if result["status"] >= 400:
                 raise SystemExit(1)

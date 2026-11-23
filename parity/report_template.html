@@ -146,8 +146,6 @@
       const values = {actions: scenario.actions, effects: scenario.effects ?? scenario.after, raw: scenario};
       text("scenario-json", values[selectedTab] == null ? "No " + (selectedTab === "effects" ? "business effects" : "action trace") + " recorded for this scenario." : json(values[selectedTab]));
       text("trace-label", selectedTab === "actions" ? "Actual client / service observations" : selectedTab === "effects" ? "Inspected business state; no blanket normalization" : "Complete saved scenario record");
-      $("scenario-content").setAttribute("aria-labelledby", "tab-" + selectedTab);
-      for (const tab of ["actions","effects","raw"]) $("tab-" + tab).setAttribute("aria-selected", String(tab === selectedTab));
       [...$("scenario-list").children].forEach((button, i) => button.setAttribute("aria-pressed", String(i === selectedScenario)));
     }
     function renderScenarioList() {
@@ -190,11 +188,17 @@
         $("public-trials-list").append(block);
       });
     }
-    for (const button of document.querySelectorAll("[data-copy]")) button.addEventListener("click", async () => {
-      const value = $(button.dataset.copy)?.textContent || "";
-      try { await navigator.clipboard.writeText(value); const original = button.textContent; button.textContent = "Copied"; setTimeout(() => { button.textContent = original; }, 1500); }
-      catch { button.textContent = "Select text to copy"; }
-    });
+    for (const button of document.querySelectorAll("[data-copy]")) {
+      const label = button.textContent;
+      let reset;
+      button.addEventListener("click", async () => {
+        clearTimeout(reset);
+        const value = $(button.dataset.copy)?.textContent || "";
+        try { await navigator.clipboard.writeText(value); button.textContent = "Copied"; }
+        catch { button.textContent = "Select text to copy"; }
+        reset = setTimeout(() => { button.textContent = label; }, 1500);
+      });
+    }
     text("usage-calls", usage.length || (finite(manifest.model_calls) ? manifest.model_calls : "Not recorded"));
     const timed = usage.filter(call => finite(call.elapsed_s));
     text("usage-time", timed.length ? timed.reduce((sum,call) => sum + call.elapsed_s,0).toFixed(1) + "s" : "Not observed");

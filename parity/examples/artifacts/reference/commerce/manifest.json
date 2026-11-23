@@ -1,6 +1,6 @@
 {
-  "provenance": "manually-authored-reference",
+  "provenance": "maintained-reference",
   "domain": "commerce",
-  "adapter_sha256": "9d0bdee9b03483edfa1f1eea89e8311a03024244fe0e5d49cbc390feda58b8b2",
-  "note": "Engineering calibration, never supplied to model; not counted as AI generation."
+  "adapter_sha256": "4eaf8f831fa6868c25a47b708bec248b31b86300eaf0cb0776f7c7bd452f1c4c",
+  "note": "Maintained reference for checker calibration. Separate from the recorded model output."
 }

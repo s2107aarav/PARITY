@@ -60,7 +60,7 @@ def main():
                 conn.exec_driver_sql("CREATE DATABASE parity_v2")
             engine.dispose()
             replay = Replay(
-                examples() / "artifacts/generated/commerce-live-001/adapter.py",
+                examples() / "artifacts/generated/commerce-live-002/adapter.py",
                 root / "replay",
                 old_database=url + "parity_v1",
                 new_database=url + "parity_v2",
@@ -80,7 +80,8 @@ def main():
             subprocess.run([*base, "stop", "-m", "fast"], check=True, capture_output=True)
             start()
             after = replay.verify_state()
-            assert before == after, "business state did not survive PostgreSQL restart"
+            if before != after:
+                raise RuntimeError("business state did not survive PostgreSQL restart")
             result["scenarios"].append({"scenario": "postgres_restart", "status": "pass"})
             result["status"] = "verified"
         finally:

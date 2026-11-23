@@ -15,7 +15,15 @@ source .venv/bin/activate
 parity --help
 ```
 
-## Try a migration
+## Run the commerce demo
+
+```sh
+parity demo
+```
+
+The offline demo first sends the unchanged checkout request to both fixture APIs. It then runs the saved commerce adapter against V2 and compares the responses, inventory and ledger with V1. Open the report path printed by the command and select `payment_loss_restart` to see how the adapter recovers when V2 commits a charge before returning an error. The report also includes a manual reference, deliberately defective adapters and the saved ticketing trial.
+
+## Try an external project
 
 Create a ticketing project with two different API contracts and one scenario:
 
@@ -45,12 +53,6 @@ parity validate --project ticket-migration/parity.json --adapter transfer-live-0
 ```
 
 The output includes HTML and JSON reports under the project's `.parity/` directory. They identify failed requests and show which business checks ran. This example checks responses; it does not claim to verify business effects you have not declared.
-
-The full offline demonstration additionally checks checkout effects, compensation, concurrency, recovery, and deliberately incorrect adapters:
-
-```sh
-parity demo
-```
 
 ## Use your APIs
 

@@ -31,6 +31,10 @@ Retrieval and listing expose paid and cancelled orders. Listing uses positive pa
 
 Drafts and compensated failures remain inspectable internal records. They must not appear as successful V1 orders. V2 listing uses a stable sequence cursor and returns internal records. The generated adapter instead enumerates only its published ID mappings, fetches current orders, sorts stable legacy IDs and slices pages. This is a bounded, deliberately simple pagination conversion. The pinned generated artifact caps selected orders at 80 and mappings at 10,000; excess returns PENDING rather than incomplete success.
 
+The maintained commerce reference accepts percent-encoded route values and uses the last value for repeated scalar pagination parameters, as V1 does. The historical `commerce-live-002` output returns 404 for `/inventory/%43OFFEE` and 422 for `?page=1&page=2`; it remains available for replaying the original generation trial. The worker passes raw paths and repeated values through so adapters can apply their own legacy contracts.
+
+Run the installed reference with `parity validate --suite commerce --adapter reference/commerce`.
+
 V2 errors use `{problem:{kind}}`. The plan/code maps PRODUCT_MISSING, BAD_TOTAL, DECLINED, INSUFFICIENT_STOCK, KEY_CONFLICT, MISSING_RESOURCE and INVALID_INPUT to the corresponding V1 status/code.
 
 ## Retry and compensation policy
@@ -45,7 +49,7 @@ This provides **at-least-once calls with durable deduplication**, not globally e
 
 Replay seeds equivalent isolated states and applies the same logical client actions. Only order IDs normalize through a one-to-one correspondence learned from paired successful responses. IDs must be positive integers, stable and nonaliased. No amount, status, error, item, list total or stock value is ignored. There are no timestamps to blanket-ignore.
 
-Final-state checks require one charge of exactly the order amount, one equal refund iff cancelled, no orphan ledger rows, no unsettled charged/reserved draft at scenario completion, and `initial stock = available + paid-order units`. Compensated uncharged drafts are allowed only as internal audit records. They cannot mask money, stock or visible-order mismatches.
+Final-state checks require one charge of exactly the order amount, one equal refund iff cancelled, no orphan ledger rows or reservations, and `initial stock = available + paid-order units`. Confirmed V2 orders must have matching held reservations, and cancelled orders must release any reservation. Compensated uncharged drafts are allowed as internal audit records.
 
 ## Transfer
 

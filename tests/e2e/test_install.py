@@ -60,6 +60,7 @@ sys.path.insert(0, sys.argv.pop(1))
 from parity.cli import main, artifact_path
 from parity.resources import examples
 assert artifact_path("commerce-live-002").is_relative_to(examples())
+assert artifact_path("reference/commerce").is_relative_to(examples())
 main()
 """
     command = [sys.executable, "-c", program, str(installed)]

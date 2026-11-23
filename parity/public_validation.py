@@ -5,12 +5,15 @@ from pathlib import Path
 
 import httpx
 
+from parity.comparison import require_assertions
 from parity.fixtures import FIXTURES
-from parity.sandbox import AdapterProcess
+from parity.sandbox import AdapterProcess, AdapterSource
 from parity.serving import Server
 
 
-def validate(source: Path, domain: str, root: Path):
+def validate(source: Path | AdapterSource, domain: str, root: Path):
+    require_assertions()
+    source = AdapterSource.read(source)
     root.mkdir(parents=True, exist_ok=True)
     service = Server(FIXTURES[domain].new(str(root / "v2.db")))
     worker = None
@@ -122,5 +125,6 @@ def validate(source: Path, domain: str, root: Path):
         if worker:
             worker.close()
         service.close()
+    result["adapter_sha256"] = source.sha256
     (root / "public-result.json").write_text(json.dumps(result, indent=2))
     return result

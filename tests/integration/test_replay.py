@@ -5,8 +5,9 @@ from concurrent.futures import ThreadPoolExecutor
 import httpx
 import pytest
 
-from parity.replay import SCENARIOS, Replay
+from parity.replay import SCENARIOS, Replay, evaluate
 from parity.resources import examples
+from parity.sandbox import digest
 from parity.transfer_replay import evaluate as transfer_evaluate
 
 
@@ -43,6 +44,58 @@ def test_duplicate_sku_and_restart_identity(tmp_path):
             lambda: replay.old.order(a["id"]),
             lambda: replay.new.order(b["id"]),
         )
+        replay.verify_state()
+    finally:
+        replay.close()
+
+
+def test_reference_accepts_legacy_request_formats(tmp_path):
+    replay = Replay(examples() / "artifacts/reference/commerce/adapter.py", tmp_path)
+    try:
+        replay.checkout()
+        for path in (
+            "/inventory/%43OFFEE",
+            "/orders?page=1&page=2",
+            "/orders?page=invalid&page=1.00",
+            "/orders/%31",
+        ):
+            expected, actual = [client.http.get(path) for client in (replay.old, replay.new)]
+            assert expected.status_code == 200
+            replay.compare_pair(path, expected, actual)
+        replay.verify_state()
+    finally:
+        replay.close()
+
+
+def test_replay_uses_one_adapter_version_for_every_scenario(tmp_path, monkeypatch):
+    source = tmp_path / "adapter.py"
+    reference = examples() / "artifacts/reference/commerce/adapter.py"
+    source.write_bytes(reference.read_bytes())
+    original = Replay.run_scenario
+
+    def edit_after_trial(replay, scenario):
+        result = original(replay, scenario)
+        source.write_text("edited during replay")
+        return result
+
+    monkeypatch.setattr(Replay, "run_scenario", edit_after_trial)
+    report = evaluate(source, tmp_path / "evaluation", scenarios=("ordinary", "errors"))
+    assert report["passed"] == report["total"] == 2
+    assert report["artifact_sha256"] == digest(reference) != digest(source)
+
+
+@pytest.mark.parametrize("artifact", ["reference/commerce", "generated/commerce-live-002"])
+def test_lost_draft_response_preserves_original_request_identity(tmp_path, artifact):
+    replay = Replay(examples() / "artifacts" / artifact / "adapter.py", tmp_path)
+    try:
+        replay.successor.app.state.faults.arm("draft.after")
+        expected = replay.old.checkout(key="draft-loss")
+        pending = replay.new.checkout(key="draft-loss")
+        assert (pending.status_code, pending.json()) == (503, {"error": "PENDING"})
+        replay.worker.restart()
+        conflict = replay.new.checkout(key="draft-loss", token="declined")
+        assert (conflict.status_code, conflict.json()) == (409, {"error": "KEY_REUSED"})
+        replay.compare_pair("draft retry", expected, replay.new.checkout(key="draft-loss"))
         replay.verify_state()
     finally:
         replay.close()

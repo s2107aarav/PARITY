@@ -15,14 +15,15 @@ from parity.fixtures import FIXTURES
 from parity.plans import MigrationPlan, Strict, validate_plan
 from parity.providers import Provider, ProviderUnavailable
 from parity.public_validation import validate
-from parity.sandbox import check_source, digest
+from parity.sandbox import AdapterSource, check_source, digest
 from parity.serving import Server
 
 ABI = """
 Produce Python source adapter.py exposing:
 handle(ctx, method:str, path:str, body:dict|None, query:dict[str,str|list[str]], headers:dict[str,str]) -> response or (HTTP status:int, JSON data).
 Headers are lowercase. The engine does NOT automatically validate the legacy body; implement schema/error behavior.
-Allowed imports ONLY: from parity.runtime import UpstreamError; json, hashlib, re, math.
+Allowed imports ONLY: from parity.runtime import UpstreamError; from urllib.parse import quote, unquote; json, hashlib, re, math.
+Paths arrive percent-encoded and repeated query parameters arrive as lists. Apply the legacy service's decoding and parameter rules. Encode values before inserting them into upstream path segments.
 ctx.request(method, relative_path, body=None, headers=None, query=None) returns a response with .status, .headers and .body, including empty bodies and text errors. It does not raise for HTTP error statuses.
 Return ctx.respond(status, body=None, headers=None) to preserve HTTP headers or empty responses; the legacy (status, JSON) pair remains supported.
 No I/O, dynamic imports, introspection, private attributes, shell, external network or files.
@@ -35,7 +36,7 @@ ctx capabilities:
 - ctx.digest(JSON): deterministic SHA256 including full request fields.
 - ctx.id_for(upstream_uuid): stable positive legacy integer, allocates only when called.
 - ctx.upstream_id(legacy_int): existing UUID or None.
-- ctx.mappings(): dictionary of legacy IDs to upstream IDs already published via id_for.
+- ctx.mappings(): list of upstream IDs already published via id_for or imported by the project; sort explicitly if needed.
   You may implement legacy page/size by enumerating published mappings; cap scope honestly.
 All decisions and orchestration belong in generated source. Runtime contains no domain solution.
 Checkpoint upstream reference before dependent effects, rely on upstream idempotency when a response is lost.
@@ -176,22 +177,37 @@ class Agent:
             self.probes = previous["probes"]
             self.calls = previous["calls"]
             self.responses = previous.get("responses", 0)
-            if (parent / "plan.json").exists():
+            # New checkpoints name the versions that were committed with these counters.
+            # Older archives used only the latest aliases.
+            files = previous.get("checkpoint_files")
+            plan_path = parent / "plan.json"
+            source_path = parent / "adapter.py"
+            if files is not None:
+                plan_path = self.checkpoint_file(parent, files["plan"], "plan", ".json")
+                source_path = self.checkpoint_file(parent, files["source"], "adapter", ".py")
+            if plan_path and plan_path.is_file():
                 self.plan = validate_plan(
-                    MigrationPlan.model_validate_json((parent / "plan.json").read_text()),
+                    MigrationPlan.model_validate_json(plan_path.read_text()),
                     self.old,
                     self.new,
                 )
+                (self.output / f"plan-v{self.plan.revision}.json").write_text(
+                    self.plan.model_dump_json(indent=2)
+                )
                 (self.output / "plan.json").write_text(self.plan.model_dump_json(indent=2))
-            if (parent / "adapter.py").is_file():
-                source = (parent / "adapter.py").read_text()
+            if source_path and source_path.is_file():
+                source = source_path.read_text()
                 check_source(source)
                 manifest_path = parent / "manifest.json"
-                if manifest_path.exists() and json.loads(manifest_path.read_text()).get(
-                    "adapter_sha256"
-                ) not in (None, digest(parent / "adapter.py")):
+                if (
+                    files is None
+                    and manifest_path.exists()
+                    and json.loads(manifest_path.read_text()).get("adapter_sha256")
+                    not in (None, digest(source_path))
+                ):
                     raise ValueError("resume source digest mismatch")
-                self.source = self.output / f"adapter-v{self.attempts}.py"
+                name = source_path.name if files is not None else f"adapter-v{self.attempts}.py"
+                self.source = self.output / name
                 self.source.write_text(source)
                 (self.output / "adapter.py").write_text(source)
             self.history.append(
@@ -233,7 +249,27 @@ class Agent:
         )
         self.persist("resuming")
 
+    @staticmethod
+    def checkpoint_file(root, entry, prefix, suffix):
+        if entry is None:
+            return None
+        name = entry["name"]
+        lead = f"{prefix}-v"
+        if not (
+            name.startswith(lead)
+            and name.endswith(suffix)
+            and name[len(lead) : -len(suffix)].isdigit()
+        ):
+            raise ValueError("invalid checkpoint filename")
+        path = root / name
+        if digest(path) != entry["sha256"]:
+            raise ValueError(f"checkpoint digest mismatch: {name}")
+        return path
+
     def persist(self, status):
+        def fingerprint(path):
+            return {"name": path.name, "sha256": digest(path)} if path else None
+
         write_json(
             self.output / "state.json",
             {
@@ -244,6 +280,12 @@ class Agent:
                 "source_attempts": self.attempts,
                 "probes": self.probes,
                 "plan_revision": self.plan.revision if self.plan else None,
+                "checkpoint_files": {
+                    "plan": fingerprint(self.output / f"plan-v{self.plan.revision}.json")
+                    if self.plan
+                    else None,
+                    "source": fingerprint(self.source),
+                },
                 "history": self.history,
                 "feedback": self.feedback,
                 "outstanding_mismatch": self.feedback
@@ -253,20 +295,20 @@ class Agent:
         )
 
     def validate(self, source, output):
+        source = AdapterSource.read(source)
+        fingerprints = {
+            "adapter_sha256": source.sha256,
+            "plan_sha256": digest(self.output / "plan.json"),
+        }
         if self.project:
             result = self.project.validate(source, output)
             return {
                 "passed": result["passed"] == result["total"],
                 "steps": result["scenarios"],
                 "scope": "declared user scenarios; private checker source withheld",
-                "adapter_sha256": digest(source),
-                "plan_sha256": digest(self.output / "plan.json"),
+                **fingerprints,
             }
-        return {
-            **validate(source, self.domain, output),
-            "adapter_sha256": digest(source),
-            "plan_sha256": digest(self.output / "plan.json"),
-        }
+        return {**validate(source, self.domain, output), **fingerprints}
 
     def tool(self, call: ToolCall):
         args: Any = TOOLS[call.tool].model_validate_json(call.arguments)
@@ -306,10 +348,10 @@ class Agent:
             plan = validate_plan(args.plan, self.old, self.new)
             if self.plan and plan.revision <= self.plan.revision:
                 raise ValueError("plan revision must increase")
-            self.plan = plan
-            self.feedback = None
             (self.output / f"plan-v{plan.revision}.json").write_text(plan.model_dump_json(indent=2))
             (self.output / "plan.json").write_text(plan.model_dump_json(indent=2))
+            self.plan = plan
+            self.feedback = None
             return {"accepted": True, "revision": plan.revision}
         if call.tool == "submit_code":
             if self.plan is None:
@@ -320,9 +362,9 @@ class Agent:
             candidate = self.output / f"adapter-v{self.attempts}.py"
             candidate.write_text(args.source)
             check_source(args.source)
+            (self.output / "adapter.py").write_text(args.source)
             self.source = candidate
             self.feedback = None
-            (self.output / "adapter.py").write_text(args.source)
             return {"accepted": True, "revision": self.attempts, "sha256": digest(candidate)}
         if call.tool == "run_tests":
             if self.source is None:
@@ -342,9 +384,11 @@ class Agent:
                 raise ValueError(
                     "cannot finish without a passing public trial; no private success claim implied"
                 )
-            if self.feedback.get("adapter_sha256") != digest(self.source) or self.feedback.get(
-                "plan_sha256"
-            ) != digest(self.output / "plan.json"):
+            if (
+                self.feedback.get("adapter_sha256") != digest(self.source)
+                or self.feedback.get("adapter_sha256") != digest(self.output / "adapter.py")
+                or self.feedback.get("plan_sha256") != digest(self.output / "plan.json")
+            ):
                 raise ValueError("source or plan changed since validation")
             return {"finished": True}
         raise ValueError("unknown tool")
@@ -397,6 +441,14 @@ class Agent:
                 if entry.get("result", {}).get("finished"):
                     status = "public_validation_passed"
                     break
+            source_hash = digest(self.output / "adapter.py") if self.source else None
+            plan_hash = digest(self.output / "plan.json") if self.plan else None
+            if status == "public_validation_passed" and (
+                not self.feedback
+                or source_hash != self.feedback["adapter_sha256"]
+                or plan_hash != self.feedback["plan_sha256"]
+            ):
+                raise ValueError("source or plan changed before publishing the manifest")
             self.persist(status)
             manifest = {
                 "provenance": getattr(self.provider, "provenance", "test-provider")
@@ -410,8 +462,8 @@ class Agent:
                 "parent": self.parent,
                 "elapsed_s": round(time.perf_counter() - started, 3),
                 "cost_usd": None,
-                "adapter_sha256": digest(self.output / "adapter.py") if self.source else None,
-                "plan_sha256": digest(self.output / "plan.json") if self.plan else None,
+                "adapter_sha256": source_hash,
+                "plan_sha256": plan_hash,
                 "unmapped_operations": sorted(
                     set(operations(self.old))
                     - {mapping.legacy_operation for mapping in self.plan.mappings}

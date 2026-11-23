@@ -71,6 +71,8 @@ def test_explicit_field_and_required_deltas():
         "from parity.runtime import Path\ndef handle(*args): return 200, {}",
         "import parity.runtime\ndef handle(*args): return 200, {}",
         "from parity.runtime import *\ndef handle(*args): return 200, {}",
+        "import urllib.parse\ndef handle(*args): return 200, {}",
+        "from urllib.parse import urlopen\ndef handle(*args): return 200, {}",
         "from .json import loads\ndef handle(*args): return 200, {}",
     ],
 )
@@ -107,6 +109,15 @@ def test_missing_operation_ids_do_not_match_unrelated_routes():
     old = {"info": {}, "paths": {"/old": {"get": {"responses": {}}}}}
     new = {"info": {}, "paths": {"/new": {"get": {"responses": {}}}}}
     assert analyze(old, new)["changes"][0]["kind"] == "removed_operation"
+
+
+def test_moved_operations_are_not_also_reported_as_additions():
+    operation = {"operationId": "list_items", "responses": {}}
+    old = {"info": {}, "paths": {"/old": {"get": operation}}}
+    new = {"info": {}, "paths": {"/new": {"get": operation}}}
+    delta = analyze(old, new)
+    assert [row["kind"] for row in delta["changes"]] == ["operation_path_changed"]
+    assert delta["added_operations"] == []
 
 
 def test_inherited_parameters_are_compared_and_operation_overrides_apply():

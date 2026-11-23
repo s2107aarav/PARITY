@@ -32,6 +32,9 @@ class Transaction:
         ).scalar_one_or_none()
         return json.loads(value) if value is not None else default
 
+    def empty(self) -> bool:
+        return self.connection.execute(select(records.c.key).limit(1)).first() is None
+
     def put(self, bucket: str, key: str, value: Any) -> None:
         self.connection.execute(
             delete(records).where(records.c.bucket == bucket, records.c.key == str(key))

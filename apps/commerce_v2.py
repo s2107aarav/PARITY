@@ -77,7 +77,8 @@ def create_app(database: str) -> FastAPI:
             order = {"order_ref": oid, "phase": "draft", **value, "sequence": tx.next_id("orders")}
             tx.put("orders", oid, order)
             tx.put("requests", idempotency_key, {"ref": oid, "fingerprint": fingerprint(value)})
-            return order
+        app.state.faults.hit("draft.after")
+        return order
 
     @app.post("/inventory/reservations", operation_id="reserve_stock")
     def reserve(body: OrderRef):

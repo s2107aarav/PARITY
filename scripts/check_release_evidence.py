@@ -25,10 +25,13 @@ def main():
         artifact = root / name
         manifest = json.loads((artifact / "manifest.json").read_text())
         source = digest(artifact / "adapter.py")
-        assert source == manifest["adapter_sha256"] and source in outputs
-        assert digest(artifact / "plan.json") == manifest["plan_sha256"]
+        if source != manifest["adapter_sha256"] or source not in outputs:
+            raise ValueError(f"{name}: source does not match manifest and recorded model output")
+        if digest(artifact / "plan.json") != manifest["plan_sha256"]:
+            raise ValueError(f"{name}: plan does not match manifest")
         for filename, expected in manifest["inputs"].items():
-            assert digest(artifact / "inputs" / filename) == expected
+            if digest(artifact / "inputs" / filename) != expected:
+                raise ValueError(f"{name}: {filename} does not match manifest")
         rows.append(
             {
                 "artifact": name,

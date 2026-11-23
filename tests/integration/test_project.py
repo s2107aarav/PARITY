@@ -8,10 +8,11 @@ from fastapi.responses import JSONResponse, PlainTextResponse, Response
 from pydantic import BaseModel
 
 from parity.agent import Agent
-from parity.project import Project
+from parity.project import Case, Project
 from parity.relay import relay_app
-from parity.sandbox import AdapterProcess
+from parity.sandbox import AdapterProcess, digest
 from parity.serving import Server
+from parity.storage import Store
 
 SOURCE = """def handle(ctx, method, path, body, query, headers):
     with ctx.lock():
@@ -67,6 +68,10 @@ def project(tmp_path, monkeypatch):
         def empty():
             return Response(status_code=200, media_type="application/json")
 
+        @app.head("/head")
+        def head():
+            return Response(headers={"Content-Length": "42"})
+
         @app.get("/null")
         def null():
             return JSONResponse(None)
@@ -78,6 +83,21 @@ def project(tmp_path, monkeypatch):
         @app.get("/json-string")
         def json_string():
             return Response('"text value"', media_type="Application/JSON")
+
+        @app.get("/cookies")
+        def cookies():
+            response = JSONResponse({})
+            response.set_cookie("first", "one")
+            response.set_cookie("second", "two")
+            return response
+
+        @app.get("/latin1")
+        def latin1():
+            return Response(b"caf\xe9", media_type="text/plain; charset=iso-8859-1")
+
+        @app.get("/invalid-json")
+        def invalid_json():
+            return Response("1e400", media_type="application/json")
 
         @app.post("/reset", status_code=205)
         def reset():
@@ -228,6 +248,37 @@ def check_effects(case):
     assert "authorization" not in project.workflows(source)[0]["request"]["headers"]
 
 
+def test_invalid_baseline_stops_paired_write(project):
+    project.test_servers[0].app.state.lose = True
+    result = project.validate()
+    row = result["scenarios"][0]
+    assert row["status"] == "fail"
+    assert "undocumented HTTP 503" in row["mismatch"]
+    assert row["actions"][0]["actual_status"] is None
+    assert project.test_servers[1].app.state.items == {}
+
+
+def test_evaluation_fingerprints_match_loaded_inputs(project, monkeypatch):
+    source = adapter(project)
+    scenario_path = project.root / project.settings.scenarios
+    contract_path = project.root / project.settings.old.schema_path
+    fingerprints = {path: digest(path) for path in (source, scenario_path, contract_path)}
+    original = Case.request
+
+    def edit_inputs(case, *args, **kwargs):
+        result = original(case, *args, **kwargs)
+        for path in fingerprints:
+            path.write_text("edited during validation")
+        return result
+
+    monkeypatch.setattr(Case, "request", edit_inputs)
+    result = project.validate(source)
+    assert result["passed"] == 1
+    assert result["adapter_sha256"] == fingerprints[source]
+    assert result["scenarios_sha256"] == fingerprints[scenario_path]
+    assert result["contracts"]["old"] == fingerprints[contract_path]
+
+
 @pytest.mark.parametrize("scenario_passes,expected", [(False, "not_checked"), (True, "failed")])
 def test_effect_report_distinguishes_skipped_and_failed_checks(project, scenario_passes, expected):
     project.root.joinpath("scenarios.py").write_text(f"""def test_workflow(case):
@@ -241,16 +292,94 @@ def check_effects(case):
     assert result["scenarios"][0]["business_effects"] == expected
 
 
+def test_teardown_error_preserves_the_original_mismatch(project):
+    project.root.joinpath("scenarios.py").write_text("""def test_workflow(case):
+    raise AssertionError("workflow mismatch")
+def teardown(case):
+    raise RuntimeError("cleanup failed")
+""")
+    result = project.validate()
+    row = result["scenarios"][0]
+    assert row["mismatch"] == "AssertionError: workflow mismatch"
+    assert row["teardown_error"] == "RuntimeError: cleanup failed"
+    report = Path(result["report"]).read_text()
+    assert "workflow mismatch" in report and "cleanup failed" in report
+
+
 def test_pending_request_can_be_inspected_and_retried(project):
     source = adapter(project)
+    project.root.joinpath("scenarios.py").write_text("""def test_create(case):
+    case.request("POST", "/items", content=b'{"quantity":2}',
+                 headers={"Idempotency-Key": case.run_id, "Accept": "application/json"})
+""")
     project.test_servers[1].app.state.lose = True
     result = project.validate(source)
     assert result["passed"] == 0
     pending = project.workflows(source)[0]
     assert pending["status"] == "pending"
+    assert pending["request"]["headers"]["accept"] == "application/json"
+    assert "content-type" not in pending["request"]["headers"]
     assert project.retry(source, pending["id"])["status"] == 201
-    assert project.workflows(source)[0]["status"] == "completed"
+    assert [row["status"] for row in project.workflows(source)] == ["completed"]
     assert len(project.test_servers[1].app.state.items) == 1
+
+
+def test_retry_refuses_unrecorded_caller_headers(project, monkeypatch):
+    source = adapter(project)
+    project.root.joinpath("scenarios.py").write_text("""def test_create(case):
+    case.request("POST", "/items", json={"quantity": 2},
+                 headers={"Idempotency-Key": case.run_id, "X-Account": "sensitive-account-id"})
+""")
+    project.test_servers[1].app.state.lose = True
+    assert project.validate(source)["passed"] == 0
+    pending = project.workflows(source)[0]
+    assert pending["unreplayed_headers"] == ["x-account"]
+    assert "sensitive-account-id" not in json.dumps(pending)
+
+    def unexpected_relay(*args, **kwargs):
+        pytest.fail("retry opened a relay for a request it could not reconstruct")
+
+    monkeypatch.setattr("parity.project.relay_app", unexpected_relay)
+    with pytest.raises(ValueError, match="cannot reconstruct caller headers: x-account"):
+        project.retry(source, pending["id"])
+
+
+def test_pending_request_cannot_be_retried_against_a_different_upstream(project, monkeypatch):
+    source = adapter(project)
+    project.test_servers[1].app.state.lose = True
+    assert project.validate(source)["passed"] == 0
+    pending = project.workflows(source)[0]
+    config = json.loads(project.path.read_text())
+    config["new"]["base_url"] = config["old"]["base_url"]
+    config["bind_existing_runtime"] = True
+    project.path.write_text(json.dumps(config))
+    changed = Project(project.path)
+
+    def unexpected_relay(*args, **kwargs):
+        pytest.fail("retry opened a relay before checking the stored upstream")
+
+    monkeypatch.setattr("parity.project.relay_app", unexpected_relay)
+    with pytest.raises(ValueError, match="different upstream URL"):
+        changed.retry(source, pending["id"])
+    assert changed.workflows(source)[0]["status"] == "pending"
+
+
+def test_existing_state_can_be_bound_without_losing_checkpoints(project):
+    source = adapter(project)
+    root = project.runtime_root(source)
+    store = Store(str(root / "state/adapter.db"))
+    try:
+        with store.transaction() as tx:
+            tx.put("state", "checkout", {"stage": "pending"})
+        with pytest.raises(ValueError, match="no upstream binding"):
+            project.prepare_runtime(source)
+        project.settings.bind_existing_runtime = True
+        assert project.prepare_runtime(source) == root
+        project.settings.bind_existing_runtime = False
+        assert project.prepare_runtime(source) == root
+        assert store.snapshot()["state"]["checkout"] == {"stage": "pending"}
+    finally:
+        store.close()
 
 
 def test_retry_rejects_a_tampered_request_target(project, monkeypatch):
@@ -275,7 +404,17 @@ def test_retry_rejects_a_tampered_request_target(project, monkeypatch):
 
 
 def test_worker_preserves_empty_text_headers_and_repeated_query(project, tmp_path):
-    source = adapter(project)
+    source = adapter(
+        project,
+        SOURCE.replace(
+            "        return ctx.respond",
+            '        if path == "/cookies":\n'
+            '            result.headers["Content-Length"] = "10"\n'
+            '            result.headers["Connection"] = "x-private"\n'
+            '            result.headers["X-Private"] = "ignored"\n'
+            "        return ctx.respond",
+        ),
+    )
     worker = AdapterProcess(source, project.test_servers[1].url, tmp_path / "worker")
     try:
         with httpx.Client(base_url=worker.url, trust_env=False) as client:
@@ -294,9 +433,24 @@ def test_worker_preserves_empty_text_headers_and_repeated_query(project, tmp_pat
             assert null.status_code == 200 and null.content == b"null"
             assert client.get("/text-json").text == '{ "literal": true }'
             assert client.get("/json-string").json() == "text value"
+            cookies = client.get("/cookies")
+            assert cookies.json() == {} and cookies.headers["content-length"] == "2"
+            assert cookies.headers.get_list("set-cookie") == [
+                "first=one; Path=/; SameSite=lax",
+                "second=two; Path=/; SameSite=lax",
+            ]
+            assert "x-private" not in cookies.headers
+            latin1 = client.get("/latin1")
+            assert latin1.text == "café" and latin1.content == b"caf\xe9"
+            invalid = client.get("/invalid-json")
+            assert invalid.status_code == 502
+            assert invalid.json() == {"problem": {"kind": "INVALID_UPSTREAM_JSON"}}
+            head = client.head("/head")
+            assert head.status_code == 200 and head.content == b""
+            assert head.headers["content-length"] == "42"
             reset = client.post("/reset")
             assert reset.status_code == 205 and reset.content == b""
-            for literal in ("NaN", "Infinity", "-Infinity"):
+            for literal in ("NaN", "Infinity", "-Infinity", "1e400"):
                 invalid = client.post(
                     "/items", content=literal, headers={"content-type": "application/json"}
                 )

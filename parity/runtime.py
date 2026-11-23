@@ -13,7 +13,22 @@ from pathlib import Path
 
 import httpx
 
+from parity.http_values import (
+    DECODED_BODY_HEADERS,
+    connection_tokens,
+    finite_float,
+    is_json_media_type,
+)
 from parity.storage import Store
+
+LEGACY_REPLAY_HEADERS = {"content-type", "idempotency-key", "if-match", "if-none-match"}
+REPLAY_HEADERS = LEGACY_REPLAY_HEADERS | {
+    "accept",
+    "accept-encoding",
+    "accept-language",
+    "user-agent",
+}
+TRANSPORT_HEADERS = {"host", "connection", "content-length", "transfer-encoding"}
 
 
 class UpstreamError(Exception):
@@ -21,6 +36,25 @@ class UpstreamError(Exception):
         super().__init__(f"upstream HTTP {status}")
         self.status, self.data = status, data
         self.headers = headers or {}
+
+
+class ResponseHeaders(dict):
+    """Preserve HTTP field lines while exposing the original dictionary interface."""
+
+    def __init__(self, fields):
+        headers = httpx.Headers(fields, encoding="latin-1")
+        super().__init__(headers.items())
+        self._original = dict(self)
+        self._fields = [(name.lower(), value) for name, value in headers.raw]
+
+    def field_lines(self):
+        current = {name.lower(): value for name, value in self.items()}
+        unchanged = {name for name, value in current.items() if value == self._original.get(name)}
+        return [(name, value) for name, value in self._fields if name.decode() in unchanged] + [
+            (name.encode("ascii"), value.encode("latin-1"))
+            for name, value in current.items()
+            if name not in unchanged
+        ]
 
 
 @dataclass(frozen=True)
@@ -43,11 +77,6 @@ def redact(value):
     if isinstance(value, list):
         return [redact(x) for x in value]
     return value
-
-
-def _is_json_media_type(value):
-    media = value.split(";", 1)[0].strip().lower()
-    return media == "application/json" or media.endswith("+json")
 
 
 class Context:
@@ -117,19 +146,21 @@ class Context:
         if self.local.calls > 80:
             raise UpstreamError(503, {"problem": {"kind": "CALL_BUDGET"}})
         start = time.perf_counter()
-        response_headers = {}
+        response_headers: dict = {}
         try:
             request = httpx.Request(
                 method, self.http.base_url.join(path), json=body, headers=headers, params=query
             )
             response = self.http.send(request)
             status = response.status_code
-            response_headers = {
-                k: v
-                for k, v in response.headers.items()
-                if k.lower()
-                not in {"connection", "transfer-encoding", "content-length", "content-encoding"}
-            }
+            excluded = DECODED_BODY_HEADERS | connection_tokens(response.headers)
+            response_headers = ResponseHeaders(
+                [
+                    (name, value)
+                    for name, value in response.headers.raw
+                    if name.decode().lower() not in excluded
+                ]
+            )
             if not response.content:
                 data = None
                 if status not in (204, 304):
@@ -138,11 +169,12 @@ class Context:
                         if method.upper() == "HEAD"
                         else "0"
                     )
-            elif _is_json_media_type(response.headers.get("content-type", "")):
+            elif is_json_media_type(response.headers.get("content-type", "")):
                 try:
-                    data = response.json()
+                    data = response.json(parse_float=finite_float, parse_constant=finite_float)
                 except ValueError:
-                    data = response.text
+                    data, status = {"problem": {"kind": "INVALID_UPSTREAM_JSON"}}, 502
+                    response_headers = {}
             else:
                 data = response.text
         except httpx.HTTPError:
@@ -168,35 +200,54 @@ class Context:
     def record_request(self, method, path, body, query, headers):
         if method not in {"POST", "PUT", "PATCH", "DELETE"}:
             return None
-        safe_headers = {
-            k: v
-            for k, v in headers.items()
-            if k.lower() in {"idempotency-key", "content-type", "if-match", "if-none-match"}
-        }
+        headers = {name.lower(): value for name, value in headers.items()}
         request = {
             "method": method,
             "path": path,
             "body": body,
             "query": query,
-            "headers": safe_headers,
+            "headers": {name: value for name, value in headers.items() if name in REPLAY_HEADERS},
         }
-        key = self.digest(request)
-        self.record_result(key, "pending", request=request, stage="running")
-        return key
-
-    def record_result(self, key, status, *, request=None, stage=None, http_status=None):
-        if key is None:
-            return
+        key, attempt = self.digest(request), uuid.uuid4().hex
         with self.store.transaction() as tx:
-            value = tx.get("workflows", key, {})
+            legacy_headers = {
+                name: value for name, value in headers.items() if name in LEGACY_REPLAY_HEADERS
+            }
+            if legacy_headers != request["headers"]:
+                legacy_key = self.digest({**request, "headers": legacy_headers})
+                prior = tx.get("workflows", legacy_key)
+                if prior and ("unreplayed_headers" not in prior or prior["request"] == request):
+                    key = legacy_key
+            tx.put(
+                "workflows",
+                key,
+                {
+                    "id": key,
+                    "attempt": attempt,
+                    "request": request,
+                    "unreplayed_headers": sorted(
+                        headers.keys() - REPLAY_HEADERS - TRANSPORT_HEADERS
+                    ),
+                    "status": "pending",
+                    "stage": "running",
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                },
+            )
+        return key, attempt
+
+    def record_result(self, attempt_ref, status, *, stage=None, http_status=None):
+        if attempt_ref is None:
+            return
+        key, attempt = attempt_ref
+        with self.store.transaction() as tx:
+            value = tx.get("workflows", key)
+            if value is None or value.get("attempt") != attempt:
+                return
             value.update(
-                id=key,
                 status=status,
                 stage=stage or status,
                 updated_at=datetime.now(timezone.utc).isoformat(),
             )
-            if request is not None:
-                value["request"] = request
             if http_status is not None:
                 value["http_status"] = http_status
             tx.put("workflows", key, value)

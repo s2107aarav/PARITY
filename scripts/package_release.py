@@ -1,34 +1,23 @@
-"""Publish a redacted copy; original historical evidence remains untouched locally."""
+"""Package a reviewed working tree without including untracked run data."""
 
 import hashlib
 import json
-import os
 import re
+import subprocess
+import tempfile
 import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-EXCLUDE = {
-    ".git",
-    ".venv",
-    ".parity",
-    "__pycache__",
-    ".pytest_cache",
-    ".mypy_cache",
-    ".ruff_cache",
-    ".hypothesis",
-    "build",
-    "dist",
-}
+SECRETS = re.compile(rb"sk-[A-Za-z0-9_-]{32,}|-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----")
 
 
-def public_bytes(path):
-    raw = path.read_bytes()
-    if path.suffix in {".py", ".png", ".zip"}:
+def public_bytes(path, raw):
+    if path.suffix == ".py" or path.name == "plan.json" or path.name.startswith("plan-v"):
         return raw
     try:
         text = raw.decode("utf-8")
-    except UnicodeError:
+    except UnicodeDecodeError:
         return raw
     text = text.replace(str(Path.home()), "<LOCAL_HOME>")
     text = re.sub(
@@ -39,70 +28,69 @@ def public_bytes(path):
     return text.encode("utf-8")
 
 
-def main():
-    output = ROOT / "PARITY-release.zip"
+def build_release(root: Path, output: Path):
+    root = root.resolve()
+    tracked = subprocess.check_output(["git", "ls-files", "-z"], cwd=root).decode().split("\0")
     redactions = []
-    secrets = re.compile(
-        rb"sk-[A-Za-z0-9_-]{32,}|-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----"
-    )
     count = 0
-    with zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED) as archive:
-        for directory, dirs, names in os.walk(ROOT):
-            dirs[:] = sorted(d for d in dirs if d not in EXCLUDE and not d.endswith(".egg-info"))
-            for name in sorted(names):
-                path = Path(directory) / name
-                relative = path.relative_to(ROOT)
+    with tempfile.TemporaryDirectory(prefix="parity-release-", dir=output.parent) as temp:
+        draft = Path(temp) / "release.zip"
+        with zipfile.ZipFile(draft, "w", zipfile.ZIP_DEFLATED) as archive:
+            for relative in sorted({Path(name) for name in tracked if name}):
+                path = root / relative
+                name = relative.name
                 if (
-                    path.suffix in {".zip", ".pyc", ".db"}
+                    path.suffix in {".zip", ".pyc", ".db", ".sqlite", ".sqlite3"}
                     or name.endswith((".db-shm", ".db-wal"))
-                    or name in {".env", ".DS_Store", "adapter.lock"}
+                    or (name.startswith(".env") and name != ".env.example")
+                    or name in {".DS_Store", "adapter.lock"}
+                    or {".parity", "challenge-private", "worker"}.intersection(relative.parts)
                 ):
                     continue
-                if "worker" in relative.parts and name not in {
-                    "http.jsonl",
-                    "resources.json",
-                    "termination.json",
-                }:
-                    continue
+                if path.resolve() != path or not path.is_file():
+                    raise ValueError(f"release input must be a regular file: {relative}")
                 raw = path.read_bytes()
-                if secrets.search(raw):
+                if SECRETS.search(raw):
                     raise RuntimeError(
                         f"credential pattern detected in {relative}; no value printed"
                     )
-                public = public_bytes(path)
+                public = public_bytes(path, raw)
                 if public != raw:
                     redactions.append(
                         {
-                            "path": str(relative),
+                            "path": relative.as_posix(),
                             "private_sha256": hashlib.sha256(raw).hexdigest(),
                             "public_sha256": hashlib.sha256(public).hexdigest(),
                         }
                     )
                 archive.writestr("PARITY/" + relative.as_posix(), public)
                 count += 1
-        archive.writestr(
-            "PARITY/REDACTIONS.json",
-            json.dumps(
-                {
-                    "policy": "Local home paths, hostnames and provider thread/account identifiers redacted in public copies only. Generated Python source and plans retained byte-for-byte. Raw historical evidence remains in the private workspace/archive; redacted transcript hashes intentionally differ.",
-                    "files": redactions,
-                },
-                indent=2,
-            ),
-        )
-    with zipfile.ZipFile(output) as archive:
-        assert archive.testzip() is None
-    print(
-        json.dumps(
-            {
-                "archive": output.name,
-                "files": count,
-                "redacted_files": len(redactions),
-                "bytes": output.stat().st_size,
-                "sha256": hashlib.sha256(output.read_bytes()).hexdigest(),
-            }
-        )
-    )
+            archive.writestr(
+                "PARITY/REDACTIONS.json",
+                json.dumps(
+                    {
+                        "policy": "Tracked release files only. Local paths and provider identifiers may be redacted in the public copy. Python source and accepted plans retain their original bytes.",
+                        "files": redactions,
+                    },
+                    indent=2,
+                ),
+            )
+        with zipfile.ZipFile(draft) as archive:
+            corrupt = archive.testzip()
+            if corrupt:
+                raise RuntimeError(f"release archive failed integrity check: {corrupt}")
+        draft.replace(output)
+    return {
+        "archive": output.name,
+        "files": count,
+        "redacted_files": len(redactions),
+        "bytes": output.stat().st_size,
+        "sha256": hashlib.sha256(output.read_bytes()).hexdigest(),
+    }
+
+
+def main():
+    print(json.dumps(build_release(ROOT, ROOT / "PARITY-release.zip"), indent=2))
 
 
 if __name__ == "__main__":

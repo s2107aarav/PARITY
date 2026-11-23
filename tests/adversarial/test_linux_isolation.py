@@ -43,6 +43,13 @@ try:
     result['network'] = 'reachable'
 except OSError:
     result['network'] = 'denied'
+for path in ['probe.txt', 'state/probe.txt']:
+    try:
+        with open(path, 'w') as file:
+            file.write('test canary')
+        result[path] = 'writable'
+    except OSError:
+        result[path] = 'denied'
 print(json.dumps(result))
 """
         command = worker.command()
@@ -55,7 +62,12 @@ print(json.dumps(result))
             timeout=5,
         )
         assert result.returncode == 0, result.stderr
-        assert json.loads(result.stdout) == {"private": "denied", "network": "denied"}
+        assert json.loads(result.stdout) == {
+            "private": "denied",
+            "network": "denied",
+            "probe.txt": "denied",
+            "state/probe.txt": "writable",
+        }
         worker.kill()
         worker.restart()
         with httpx.Client(trust_env=False) as client:

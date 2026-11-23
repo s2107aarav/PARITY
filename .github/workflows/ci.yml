@@ -24,6 +24,7 @@ jobs:
       - run: make setup
       - run: make check
       - run: make test
+      - run: .venv/bin/python scripts/check_release_evidence.py
       - run: make demo
       - uses: actions/upload-artifact@v4
         if: always()

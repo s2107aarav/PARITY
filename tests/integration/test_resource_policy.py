@@ -77,6 +77,27 @@ def test_spawn_failure_closes_worker_log(tmp_path, monkeypatch):
     assert len(opened) == 1 and opened[0].closed
 
 
+def test_runtime_is_exclusive_through_worker_restart(tmp_path):
+    server = Server(create_app(str(tmp_path / "service.db")))
+    source = examples() / "artifacts/reference/commerce/adapter.py"
+    root = tmp_path / "worker"
+    try:
+        first = AdapterProcess(source, server.url, root)
+        try:
+            config = (root / "config.json").read_bytes()
+            first.restart()
+            with pytest.raises(WorkerFailure, match="already in use"):
+                AdapterProcess(source, server.url, root)
+            assert (root / "config.json").read_bytes() == config
+            first.ensure_alive()
+        finally:
+            first.close()
+        second = AdapterProcess(source, server.url, root)
+        second.close()
+    finally:
+        server.close()
+
+
 def test_linux_rss_includes_descendants_after_process_group_changes(tmp_path, monkeypatch):
     import parity.sandbox as sandbox
 
